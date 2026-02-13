@@ -1,0 +1,13 @@
+fastapi
+uvicorn[standard]
+pydantic[email]
+pydantic-settings
+sqlalchemy
+psycopg2-binary
+alembic
+celery
+redis
+python-jose[cryptography]
+passlib[bcrypt]
+docker
+python-multipart
