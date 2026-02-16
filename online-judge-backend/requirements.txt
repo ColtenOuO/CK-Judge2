@@ -8,6 +8,7 @@ alembic
 celery
 redis
 python-jose[cryptography]
-passlib[bcrypt]
+passlib
+bcrypt==3.2.0
 docker
 python-multipart
