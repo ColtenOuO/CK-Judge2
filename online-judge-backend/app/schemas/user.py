@@ -8,6 +8,8 @@ class UserBase(BaseModel):
     email: Optional[EmailStr] = None
     is_active: Optional[bool] = True
     is_superuser: bool = False
+    avatar_url: Optional[str] = None
+    signature: Optional[str] = None
 
 class UserCreate(UserBase):
     username: str

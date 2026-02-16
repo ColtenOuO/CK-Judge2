@@ -2,6 +2,10 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
 import Dashboard from './pages/Dashboard';
+import CreateProblem from './pages/CreateProblem';
+import ProblemManagement from './pages/ProblemManagement';
+import ProblemList from './pages/ProblemList';
+import ProblemDetails from './pages/ProblemDetails';
 import './index.css';
 
 function App() {
@@ -20,6 +24,38 @@ function App() {
           element={
             <PrivateRoute>
               <Dashboard />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/problems"
+          element={
+            <PrivateRoute>
+              <ProblemList />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/problems/:id"
+          element={
+            <PrivateRoute>
+              <ProblemDetails />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/admin/create-problem"
+          element={
+            <PrivateRoute>
+              <CreateProblem />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/admin/problems/:id/edit"
+          element={
+            <PrivateRoute>
+              <ProblemManagement />
             </PrivateRoute>
           }
         />
