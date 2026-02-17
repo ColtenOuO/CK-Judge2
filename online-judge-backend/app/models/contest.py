@@ -5,6 +5,11 @@ from datetime import datetime
 import uuid
 
 from app.db.session import Base
+import enum
+
+class ContestType(str, enum.Enum):
+    CONTEST = "Contest"
+    HOMEWORK = "Homework"
 
 class ContestProblem(Base):
     __tablename__ = "contest_problems"
@@ -30,6 +35,7 @@ class Contest(Base):
     )
     title = Column(String, index=True, nullable=False)
     description = Column(Text, nullable=True)
+    type = Column(String, default=ContestType.CONTEST, nullable=False)
     
     start_time = Column(DateTime(timezone=True), nullable=False)
     end_time = Column(DateTime(timezone=True), nullable=False)

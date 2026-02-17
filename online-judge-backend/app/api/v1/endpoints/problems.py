@@ -33,6 +33,8 @@ async def create_problem(
     is_special_judge: bool = Form(False),
     is_partial: bool = Form(False),
     main_file: Optional[UploadFile] = File(None),
+    header_file: Optional[UploadFile] = File(None),
+    tags: Optional[str] = Form(None), # Comma separated
     current_user: models.User = Depends(deps.get_current_active_superuser),
 ) -> Any:
     """Create new problem (Admin only)."""
@@ -40,7 +42,20 @@ async def create_problem(
     if main_file:
         content = await main_file.read()
         main_code = content.decode().replace('\r\n', '\n')
+        
+    header_code = None
+    if header_file:
+        content = await header_file.read()
+        header_code = content.decode().replace('\r\n', '\n')
     
+    # Process tags
+    tag_list = []
+    if tags:
+        tag_names = [t.strip() for t in tags.split(',') if t.strip()]
+        for name in tag_names:
+            tag_obj = crud.tag.get_or_create(db, name=name)
+            tag_list.append(tag_obj)
+
     problem_in = schemas.ProblemCreate(
         title=title,
         description=description,
@@ -52,9 +67,17 @@ async def create_problem(
         is_active=is_active,
         is_special_judge=is_special_judge,
         is_partial=is_partial,
-        main_code=main_code
+        main_code=main_code,
+        header_code=header_code
     )
     problem = crud.problem.create(db, obj_in=problem_in)
+    
+    # Add tags
+    if tag_list:
+        problem.tags = tag_list
+        db.commit()
+        db.refresh(problem)
+        
     return problem
 
 @router.get("/{problem_id}", response_model=schemas.ProblemOut)
@@ -85,6 +108,8 @@ async def update_problem(
     is_special_judge: Optional[bool] = Form(None),
     is_partial: Optional[bool] = Form(None),
     main_file: Optional[UploadFile] = File(None),
+    header_file: Optional[UploadFile] = File(None),
+    tags: Optional[str] = Form(None),
     current_user: models.User = Depends(deps.get_current_active_superuser),
 ) -> Any:
     """Update a problem (Admin only)."""
@@ -111,9 +136,25 @@ async def update_problem(
     if main_file:
         content = await main_file.read()
         update_data["main_code"] = content.decode().replace('\r\n', '\n')
+        
+    if header_file:
+        content = await header_file.read()
+        update_data["header_code"] = content.decode().replace('\r\n', '\n')
     
     problem_in = schemas.ProblemUpdate(**update_data)
     problem = crud.problem.update(db, db_obj=problem, obj_in=problem_in)
+    
+    if tags is not None:
+        # Update tags
+        tag_list = []
+        tag_names = [t.strip() for t in tags.split(',') if t.strip()]
+        for name in tag_names:
+            tag_obj = crud.tag.get_or_create(db, name=name)
+            tag_list.append(tag_obj)
+        problem.tags = tag_list
+        db.commit()
+        db.refresh(problem)
+        
     return problem
 
 @router.delete("/{problem_id}", response_model=schemas.ProblemOut)

@@ -17,9 +17,12 @@ class ContestProblemUpdate(ContestProblemBase):
 class ContestProblemOut(ContestProblemBase):
     pass
 
+from app.models.contest import ContestType
+
 class ContestBase(BaseModel):
     title: str
     description: Optional[str] = None
+    type: ContestType = ContestType.CONTEST
     start_time: datetime
     end_time: datetime
     is_active: bool = True

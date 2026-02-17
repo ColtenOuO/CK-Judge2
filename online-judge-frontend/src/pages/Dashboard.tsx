@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, LayoutDashboard, Code, Trophy, Users, Edit2, PlusCircle, Save, X } from 'lucide-react';
+import { LogOut, LayoutDashboard, Code, Trophy, Users, Edit2, PlusCircle, Save, X, BookOpen } from 'lucide-react';
 import client from '../api/client';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -66,7 +66,8 @@ const Dashboard: React.FC = () => {
                 <nav className="flex-1 space-y-2">
                     <SidebarItem icon={<LayoutDashboard />} label="Overview" onClick={() => navigate('/dashboard')} active />
                     <SidebarItem icon={<Code />} label="Problem Set" onClick={() => navigate('/problems')} />
-                    <SidebarItem icon={<Trophy />} label="Contests" />
+                    <SidebarItem icon={<Trophy />} label="Contests" onClick={() => navigate('/contests')} />
+                    <SidebarItem icon={<BookOpen />} label="Homework" onClick={() => navigate('/homeworks')} />
                     <SidebarItem icon={<Users />} label="Rankings" />
 
                     {user?.is_superuser && (

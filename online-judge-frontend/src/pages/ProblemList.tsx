@@ -19,6 +19,9 @@ interface Problem {
     difficulty: string;
     is_active: boolean;
     created_at: string;
+    tags: { id: string; name: string; }[];
+    accepted_count: number;
+    submission_count: number;
 }
 
 interface UserProfile {
@@ -63,7 +66,8 @@ const ProblemList: React.FC = () => {
     };
 
     const filteredProblems = problems.filter(p =>
-        p.title.toLowerCase().includes(searchQuery.toLowerCase())
+        p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (p.tags && p.tags.some(tag => tag.name.toLowerCase().includes(searchQuery.toLowerCase())))
     );
 
     if (loading) return (
@@ -108,7 +112,7 @@ const ProblemList: React.FC = () => {
                         <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
                         <input
                             type="text"
-                            placeholder="Search problems by title..."
+                            placeholder="Search problems by title or tags..."
                             className="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 pl-12 pr-4 focus:outline-none focus:border-cyan-500/50 transition-all text-slate-200"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
@@ -122,10 +126,12 @@ const ProblemList: React.FC = () => {
                         <table className="w-full text-left">
                             <thead className="bg-slate-800/50 border-b border-slate-800">
                                 <tr>
-                                    <th className="px-6 py-4 text-sm font-semibold text-slate-400 uppercase tracking-wider">Status</th>
+                                    <th className="px-6 py-4 text-sm font-semibold text-slate-400 uppercase tracking-wider w-32">Status</th>
                                     <th className="px-6 py-4 text-sm font-semibold text-slate-400 uppercase tracking-wider">Title</th>
-                                    <th className="px-6 py-4 text-sm font-semibold text-slate-400 uppercase tracking-wider">Difficulty</th>
-                                    <th className="px-6 py-4 text-sm font-semibold text-slate-400 uppercase tracking-wider text-right">Actions</th>
+                                    <th className="px-6 py-4 text-sm font-semibold text-slate-400 uppercase tracking-wider">Tags</th>
+                                    <th className="px-6 py-4 text-sm font-semibold text-slate-400 uppercase tracking-wider w-32">Difficulty</th>
+                                    <th className="px-6 py-4 text-sm font-semibold text-slate-400 uppercase tracking-wider text-center w-32">Acceptance</th>
+                                    <th className="px-6 py-4 text-sm font-semibold text-slate-400 uppercase tracking-wider text-right w-32">Actions</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-800/50">
@@ -138,20 +144,29 @@ const ProblemList: React.FC = () => {
                                     >
                                         <td className="px-6 py-4">
                                             {problem.is_active ? (
-                                                <div className="flex items-center gap-2 text-emerald-400 text-sm">
+                                                <div className="flex items-center gap-2 text-emerald-400 text-sm font-medium">
                                                     <Unlock className="w-4 h-4" />
                                                     <span>Active</span>
                                                 </div>
                                             ) : (
-                                                <div className="flex items-center gap-2 text-slate-500 text-sm">
+                                                <div className="flex items-center gap-2 text-slate-500 text-sm font-medium">
                                                     <Lock className="w-4 h-4" />
                                                     <span>Private</span>
                                                 </div>
                                             )}
                                         </td>
                                         <td className="px-6 py-4">
-                                            <div className="font-semibold text-slate-200 group-hover:text-cyan-400 transition-colors">
+                                            <div className="font-bold text-lg text-slate-200 group-hover:text-cyan-400 transition-colors">
                                                 {problem.title}
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <div className="flex flex-wrap gap-2">
+                                                {problem.tags && problem.tags.map(tag => (
+                                                    <span key={tag.id} className="text-xs px-2.5 py-1 rounded-md bg-slate-800 text-cyan-400 border border-slate-700 font-medium">
+                                                        {tag.name}
+                                                    </span>
+                                                ))}
                                             </div>
                                         </td>
                                         <td className="px-6 py-4">
@@ -161,6 +176,14 @@ const ProblemList: React.FC = () => {
                                                 }`}>
                                                 {problem.difficulty}
                                             </span>
+                                        </td>
+                                        <td className="px-6 py-4 text-center">
+                                            <div className="flex flex-col items-center">
+                                                <span className="font-bold text-slate-200">{problem.accepted_count}</span>
+                                                <span className="text-xs text-slate-500">
+                                                    / {problem.submission_count}
+                                                </span>
+                                            </div>
                                         </td>
                                         <td className="px-6 py-4 text-right">
                                             <div className="flex items-center justify-end gap-3">
@@ -194,7 +217,7 @@ const ProblemList: React.FC = () => {
                                 ))}
                                 {filteredProblems.length === 0 && (
                                     <tr>
-                                        <td colSpan={4} className="px-6 py-12 text-center text-slate-500">
+                                        <td colSpan={6} className="px-6 py-12 text-center text-slate-500">
                                             No problems found matching your criteria.
                                         </td>
                                     </tr>

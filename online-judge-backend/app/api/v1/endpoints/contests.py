@@ -1,4 +1,4 @@
-from typing import Any, List
+from typing import Any, List, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -14,12 +14,15 @@ def read_contests(
     db: Session = Depends(deps.get_db),
     skip: int = 0,
     limit: int = 100,
+    type: Optional[str] = None,
 ) -> Any:
     """
     Retrieve contests.
     """
-    contests = crud.contest.get_multi(db, skip=skip, limit=limit)
-    return contests
+    if type:
+        return db.query(models.Contest).filter(models.Contest.type == type).offset(skip).limit(limit).all()
+    contest_list = crud.contest.get_multi(db, skip=skip, limit=limit)
+    return contest_list
 
 @router.post("/", response_model=schemas.ContestOut)
 def create_contest(

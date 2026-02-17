@@ -3,6 +3,7 @@ from pydantic import BaseModel
 from uuid import UUID
 from datetime import datetime
 from app.models.problem import Difficulty
+from .tag import TagOut
 
 # Shared properties
 class ProblemBase(BaseModel):
@@ -19,6 +20,7 @@ class ProblemBase(BaseModel):
     checker_code: Optional[str] = None
     is_partial: Optional[bool] = False
     main_code: Optional[str] = None
+    header_code: Optional[str] = None
     template_code: Optional[str] = None
 
 # Properties to receive on problem creation
@@ -27,10 +29,11 @@ class ProblemCreate(ProblemBase):
     description: str
     input_description: str
     output_description: str
+    tags: Optional[List[str]] = []
 
 # Properties to receive on problem update
 class ProblemUpdate(ProblemBase):
-    pass
+    tags: Optional[List[str]] = None
 
 # Properties shared by models stored in DB
 class ProblemInDBBase(ProblemBase):
@@ -42,4 +45,7 @@ class ProblemInDBBase(ProblemBase):
 
 # Properties to return to client
 class ProblemOut(ProblemInDBBase):
-    pass
+    tags: List["TagOut"] = []
+    accepted_count: int = 0
+    submission_count: int = 0
+

@@ -25,7 +25,8 @@ const ProblemManagement: React.FC = () => {
         difficulty: 'Easy',
         is_active: true,
         is_special_judge: false,
-        is_partial: false
+        is_partial: false,
+        tags: ''
     });
 
     // Test Cases State
@@ -34,6 +35,7 @@ const ProblemManagement: React.FC = () => {
     const [outputFile, setOutputFile] = useState<File | null>(null);
     const [isSample, setIsSample] = useState(false);
     const [mainFile, setMainFile] = useState<File | null>(null);
+    const [headerFile, setHeaderFile] = useState<File | null>(null);
 
     useEffect(() => {
         fetchProblemData();
@@ -55,7 +57,8 @@ const ProblemManagement: React.FC = () => {
                 difficulty: res.data.difficulty,
                 is_active: res.data.is_active,
                 is_special_judge: res.data.is_special_judge,
-                is_partial: res.data.is_partial || false
+                is_partial: res.data.is_partial || false,
+                tags: res.data.tags ? res.data.tags.map((t: any) => t.name).join(', ') : ''
             });
             setLoading(false);
         } catch (err) {
@@ -88,13 +91,17 @@ const ProblemManagement: React.FC = () => {
             if (mainFile) {
                 data.append('main_file', mainFile);
             }
+            if (headerFile) {
+                data.append('header_file', headerFile);
+            }
             await client.put(`/problems/${id}`, data, {
                 headers: {
                     'Content-Type': 'multipart/form-data'
                 }
             });
             setSuccess("Problem updated successfully");
-            fetchProblemData(); // Refresh to see changes
+            // Redirect after short delay
+            setTimeout(() => navigate('/problems'), 1000);
         } catch (err: any) {
             setError(err.response?.data?.detail || "Update failed");
         }
@@ -220,6 +227,17 @@ const ProblemManagement: React.FC = () => {
                                     />
                                 </div>
                                 <div className="col-span-2">
+                                    <label className="block text-sm font-medium text-slate-400 mb-2">Tags</label>
+                                    <input
+                                        type="text"
+                                        name="tags"
+                                        value={formData.tags}
+                                        onChange={handleChange}
+                                        placeholder="e.g. DP, Graph, Math (comma separated)"
+                                        className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-white focus:outline-none focus:border-cyan-500 transition-colors"
+                                    />
+                                </div>
+                                <div className="col-span-2">
                                     <label className="block text-sm font-medium text-slate-400 mb-2">Description</label>
                                     <textarea
                                         name="description"
@@ -270,6 +288,21 @@ const ProblemManagement: React.FC = () => {
                                             {problem?.main_code && !mainFile && (
                                                 <p className="mt-2 text-xs text-emerald-500">✓ main.cpp is currently stored.</p>
                                             )}
+
+                                            <div className="mt-4">
+                                                <label className="block text-sm font-medium text-slate-400 mb-2">
+                                                    {problem?.header_code ? 'Replace problem.h' : 'Upload problem.h'}
+                                                </label>
+                                                <input
+                                                    type="file"
+                                                    accept=".h,.hpp"
+                                                    onChange={(e) => setHeaderFile(e.target.files?.[0] || null)}
+                                                    className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-white focus:outline-none focus:border-cyan-500 transition-colors"
+                                                />
+                                                {problem?.header_code && !headerFile && (
+                                                    <p className="mt-2 text-xs text-emerald-500">✓ problem.h is currently stored.</p>
+                                                )}
+                                            </div>
                                         </motion.div>
                                     )}
                                 </div>
@@ -407,10 +440,6 @@ const ProblemManagement: React.FC = () => {
                                                     SAMPLE
                                                 </span>
                                             )}
-                                            {/* Delete button disabled for now as backend support suspected missing */}
-                                            {/* <button onClick={() => handleDeleteTestCase(tc.id)} className="text-slate-500 hover:text-red-400 transition-colors">
-                                                <Trash2 className="w-4 h-4" />
-                                            </button> */}
                                         </div>
                                     </div>
                                 ))}

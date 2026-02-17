@@ -20,6 +20,10 @@ class UserUpdate(UserBase):
     username: Optional[str] = None
     email: Optional[EmailStr] = None
     password: Optional[str] = None
+    is_active: Optional[bool] = None
+    is_superuser: Optional[bool] = None
+    avatar_url: Optional[str] = None
+    signature: Optional[str] = None
 
 
 class UserOut(UserBase):

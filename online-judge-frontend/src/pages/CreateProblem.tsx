@@ -21,9 +21,11 @@ const CreateProblem: React.FC = () => {
         difficulty: 'Easy',
         is_active: true,
         is_special_judge: false,
-        is_partial: false
+        is_partial: false,
+        tags: ''
     });
     const [mainFile, setMainFile] = useState<File | null>(null);
+    const [headerFile, setHeaderFile] = useState<File | null>(null);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         const { name, value, type } = e.target;
@@ -34,9 +36,10 @@ const CreateProblem: React.FC = () => {
         }));
     };
 
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'main' | 'header') => {
         if (e.target.files && e.target.files[0]) {
-            setMainFile(e.target.files[0]);
+            if (type === 'main') setMainFile(e.target.files[0]);
+            else setHeaderFile(e.target.files[0]);
         }
     };
 
@@ -53,6 +56,9 @@ const CreateProblem: React.FC = () => {
             });
             if (mainFile) {
                 data.append('main_file', mainFile);
+            }
+            if (headerFile) {
+                data.append('header_file', headerFile);
             }
 
             const res = await client.post('/problems/', data, {
@@ -117,6 +123,18 @@ const CreateProblem: React.FC = () => {
                             </div>
 
                             <div className="col-span-2">
+                                <label className="block text-sm font-medium text-slate-400 mb-2">Tags</label>
+                                <input
+                                    type="text"
+                                    name="tags"
+                                    value={formData.tags}
+                                    onChange={handleChange}
+                                    placeholder="e.g. DP, Graph, Math (comma separated)"
+                                    className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-white focus:outline-none focus:border-cyan-500 transition-colors"
+                                />
+                            </div>
+
+                            <div className="col-span-2">
                                 <label className="block text-sm font-medium text-slate-400 mb-2">Description</label>
                                 <textarea
                                     name="description"
@@ -159,11 +177,22 @@ const CreateProblem: React.FC = () => {
                                         <input
                                             type="file"
                                             accept=".cpp,.h"
-                                            onChange={handleFileChange}
+                                            onChange={(e) => handleFileChange(e, 'main')}
                                             className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-white focus:outline-none focus:border-cyan-500 transition-colors"
                                             required={formData.is_partial}
                                         />
                                         <p className="mt-2 text-xs text-slate-500 italic">This file will be used to compile with student's code and provided to them for reference.</p>
+
+                                        <div className="mt-4">
+                                            <label className="block text-sm font-medium text-slate-400 mb-2">Problem Header (problem.h)</label>
+                                            <input
+                                                type="file"
+                                                accept=".h,.hpp"
+                                                onChange={(e) => handleFileChange(e, 'header')}
+                                                className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-white focus:outline-none focus:border-cyan-500 transition-colors"
+                                            />
+                                            <p className="mt-2 text-xs text-slate-500 italic">Optional header file for function definition.</p>
+                                        </div>
                                     </motion.div>
                                 )}
                             </div>

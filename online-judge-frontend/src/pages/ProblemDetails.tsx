@@ -75,12 +75,19 @@ const ProblemDetails: React.FC = () => {
                                     <Clock className="w-3.5 h-3.5" />
                                     {problem.time_limit}ms
                                 </div>
-                                <div className="flex items-center gap-1.5 text-slate-400 text-xs">
-                                    <Database className="w-3.5 h-3.5" />
-                                    {problem.memory_limit}MB
-                                </div>
+                                <Database className="w-3.5 h-3.5" />
+                                {problem.memory_limit}MB
                             </div>
                         </div>
+                        {problem.tags && problem.tags.length > 0 && (
+                            <div className="flex gap-2 mt-2">
+                                {problem.tags.map((tag: any) => (
+                                    <span key={tag.id} className="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">
+                                        {tag.name}
+                                    </span>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 </div>
             </header>
@@ -187,7 +194,7 @@ const ProblemDetails: React.FC = () => {
                     </div>
                 </div>
             </div>
-        </div>
+        </div >
     );
 };
 

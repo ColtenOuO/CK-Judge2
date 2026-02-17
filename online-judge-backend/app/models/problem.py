@@ -41,7 +41,12 @@ class Problem(Base):
     # Partial Code / Template support
     is_partial = Column(Boolean, default=False)
     main_code = Column(Text, nullable=True)
+    header_code = Column(Text, nullable=True)
     template_code = Column(Text, nullable=True)
+
+    # Statistics
+    accepted_count = Column(Integer, default=0, nullable=False, server_default="0")
+    submission_count = Column(Integer, default=0, nullable=False, server_default="0")
     
     created_at = Column(
         UUID(as_uuid=True), 
@@ -50,3 +55,4 @@ class Problem(Base):
     )
     
     test_cases = relationship("TestCase", back_populates="problem", cascade="all, delete-orphan")
+    tags = relationship("Tag", secondary="problem_tags", back_populates="problems")

@@ -6,6 +6,7 @@ import CreateProblem from './pages/CreateProblem';
 import ProblemManagement from './pages/ProblemManagement';
 import ProblemList from './pages/ProblemList';
 import ProblemDetails from './pages/ProblemDetails';
+import ContestList from './pages/ContestList';
 import './index.css';
 
 function App() {
@@ -40,6 +41,22 @@ function App() {
           element={
             <PrivateRoute>
               <ProblemDetails />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/contests"
+          element={
+            <PrivateRoute>
+              <ContestList variant="Contest" />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/homeworks"
+          element={
+            <PrivateRoute>
+              <ContestList variant="Homework" />
             </PrivateRoute>
           }
         />
