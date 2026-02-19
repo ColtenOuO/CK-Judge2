@@ -32,6 +32,7 @@ services:
       - .:/src
       - /var/run/docker.sock:/var/run/docker.sock
     env_file: .env
+    privileged: true
     depends_on:
       - db
       - redis

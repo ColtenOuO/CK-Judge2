@@ -8,3 +8,6 @@ class Token(BaseModel):
 
 class TokenPayload(BaseModel):
     sub: Optional[UUID] = None
+
+class Msg(BaseModel):
+    msg: str

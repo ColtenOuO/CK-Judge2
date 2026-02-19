@@ -8,6 +8,8 @@ import ProblemList from './pages/ProblemList';
 import ProblemDetails from './pages/ProblemDetails';
 import ContestList from './pages/ContestList';
 import ContestDetails from './pages/ContestDetails';
+import SubmissionDetails from './pages/SubmissionDetails';
+import SubmissionList from './pages/SubmissionList';
 import './index.css';
 
 function App() {
@@ -90,6 +92,22 @@ function App() {
           element={
             <PrivateRoute>
               <ProblemManagement />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/submissions"
+          element={
+            <PrivateRoute>
+              <SubmissionList />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/submissions/:id"
+          element={
+            <PrivateRoute>
+              <SubmissionDetails />
             </PrivateRoute>
           }
         />

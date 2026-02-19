@@ -42,8 +42,22 @@ const ProblemDetails: React.FC = () => {
     }, [id]);
 
     const handleSubmit = async () => {
-        // Submission logic will go here
-        alert("Submission functionality coming soon!");
+        if (!code.trim()) {
+            alert("Please enter some code before submitting.");
+            return;
+        }
+
+        try {
+            const res = await client.post('/submissions/', {
+                problem_id: id,
+                language: 'C++',
+                code: code
+            });
+            navigate(`/submissions/${res.data.id}`);
+        } catch (err) {
+            console.error("Submission failed", err);
+            alert("Submission failed. Please try again.");
+        }
     };
 
     if (loading) return (

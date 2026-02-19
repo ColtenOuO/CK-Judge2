@@ -6,7 +6,6 @@ import {
     Clock,
     Plus,
     ArrowLeft,
-    ChevronRight,
     Trophy,
     BookOpen,
     X,

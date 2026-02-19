@@ -18,21 +18,27 @@ const Dashboard: React.FC = () => {
     const [user, setUser] = useState<UserProfile | null>(null);
     const [isEditing, setIsEditing] = useState(false);
     const [editForm, setEditForm] = useState({ avatar_url: '', signature: '' });
+    const [recentSubmissions, setRecentSubmissions] = useState([]);
 
     useEffect(() => {
-        const fetchProfile = async () => {
+        const fetchData = async () => {
             try {
-                const res = await client.get('/users/me');
-                setUser(res.data);
+                const [userRes, subRes] = await Promise.all([
+                    client.get('/users/me'),
+                    client.get('/submissions/?limit=5')
+                ]);
+
+                setUser(userRes.data);
                 setEditForm({
-                    avatar_url: res.data.avatar_url || '',
-                    signature: res.data.signature || ''
+                    avatar_url: userRes.data.avatar_url || '',
+                    signature: userRes.data.signature || ''
                 });
+                setRecentSubmissions(subRes.data.slice(0, 5));
             } catch (err) {
-                console.error("Failed to fetch profile", err);
+                console.error("Failed to fetch data", err);
             }
         };
-        fetchProfile();
+        fetchData();
     }, []);
 
     const handleLogout = () => {
@@ -165,10 +171,51 @@ const Dashboard: React.FC = () => {
                     <StatCard title="Global Rank" value="-" />
                 </div>
 
-                <div className="p-6 bg-slate-900/50 border border-slate-800 rounded-xl">
-                    <h2 className="text-lg font-semibold mb-4 text-cyan-400">Recent Activity</h2>
-                    <div className="text-slate-500 text-center py-10">
-                        No recent submissions found.
+                <div className="p-6 bg-slate-900/50 border border-slate-800 rounded-xl overflow-hidden">
+                    <h2 className="text-lg font-semibold mb-4 text-cyan-400 px-2">Recent Activity</h2>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left border-collapse">
+                            <thead>
+                                <tr className="border-b border-slate-800 text-slate-500 text-xs uppercase tracking-wider">
+                                    <th className="p-4 font-bold">Problem</th>
+                                    <th className="p-4 font-bold">Status</th>
+                                    <th className="p-4 font-bold text-right">Time</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-800/50">
+                                {recentSubmissions.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={3} className="p-8 text-center text-slate-500 italic">
+                                            No recent submissions found.
+                                        </td>
+                                    </tr>
+                                ) : (
+                                    recentSubmissions.map((sub: any) => (
+                                        <tr
+                                            key={sub.id}
+                                            onClick={() => navigate(`/submissions/${sub.id}`)}
+                                            className="hover:bg-slate-800/50 cursor-pointer transition-colors group"
+                                        >
+                                            <td className="p-4 text-sm font-bold text-white group-hover:text-cyan-400 transition-colors">
+                                                {sub.problem_title || sub.problem_id}
+                                            </td>
+                                            <td className="p-4">
+                                                <span className={`inline-block px-2.5 py-1 rounded text-xs font-bold ${sub.status === 'Accepted' ? 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/20' :
+                                                        sub.status === 'Wrong Answer' ? 'text-rose-400 bg-rose-500/10 border border-rose-500/20' :
+                                                            sub.status.includes('Error') ? 'text-amber-400 bg-amber-500/10 border border-amber-500/20' :
+                                                                'text-blue-400 bg-blue-500/10 border border-blue-500/20'
+                                                    }`}>
+                                                    {sub.status}
+                                                </span>
+                                            </td>
+                                            <td className="p-4 text-right text-xs text-slate-500">
+                                                {new Date(sub.created_at).toLocaleDateString()}
+                                            </td>
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
 

@@ -28,6 +28,8 @@ services:
       - ./online-judge-backend:/src
       - /var/run/docker.sock:/var/run/docker.sock
     env_file: ./online-judge-backend/.env
+    environment:
+      - C_FORCE_ROOT=true
     depends_on:
       - db
       - redis

@@ -12,3 +12,4 @@ passlib
 bcrypt==3.2.0
 docker
 python-multipart
+psutil
