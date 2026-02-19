@@ -1,4 +1,4 @@
-from typing import Generator
+from typing import Generator, Optional
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import jwt
@@ -13,6 +13,11 @@ from app.db.session import get_db
 
 reusable_oauth2 = OAuth2PasswordBearer(
     tokenUrl="/api/v1/login/access-token"
+)
+
+reusable_oauth2_optional = OAuth2PasswordBearer(
+    tokenUrl="/api/v1/login/access-token",
+    auto_error=False
 )
 
 
@@ -50,3 +55,24 @@ def get_current_active_superuser(
             detail="權限不足，需要管理員權限"
         )
     return current_user
+
+def get_current_user_optional(
+    db: Session = Depends(get_db), 
+    token: str = Depends(reusable_oauth2_optional)
+) -> Generator[Optional[models.User], None, None]:
+    if not token:
+        return None
+        
+    try:
+        payload = jwt.decode(
+            token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
+        )
+        token_data = schemas.TokenPayload(**payload)
+    except (jwt.JWTError, ValidationError):
+        return None
+        
+    user = crud.user.get(db, id=token_data.sub)
+    if not user or not user.is_active:
+        return None
+        
+    return user

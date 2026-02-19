@@ -15,14 +15,23 @@ def read_contests(
     skip: int = 0,
     limit: int = 100,
     type: Optional[str] = None,
+    current_user: Optional[models.User] = Depends(deps.get_current_user_optional),
 ) -> Any:
     """
     Retrieve contests.
     """
+    query = db.query(models.Contest)
+    
+    
+    # Filter by type
     if type:
-        return db.query(models.Contest).filter(models.Contest.type == type).offset(skip).limit(limit).all()
-    contest_list = crud.contest.get_multi(db, skip=skip, limit=limit)
-    return contest_list
+        query = query.filter(models.Contest.type == type)
+        
+    # Filter by visibility (Admins see all, others see only visible)
+    if not (current_user and current_user.is_superuser):
+        query = query.filter(models.Contest.is_visible == True)
+        
+    return query.offset(skip).limit(limit).all()
 
 @router.post("/", response_model=schemas.ContestOut)
 def create_contest(

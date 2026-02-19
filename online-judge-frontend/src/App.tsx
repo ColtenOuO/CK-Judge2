@@ -7,6 +7,7 @@ import ProblemManagement from './pages/ProblemManagement';
 import ProblemList from './pages/ProblemList';
 import ProblemDetails from './pages/ProblemDetails';
 import ContestList from './pages/ContestList';
+import ContestDetails from './pages/ContestDetails';
 import './index.css';
 
 function App() {
@@ -53,10 +54,26 @@ function App() {
           }
         />
         <Route
+          path="/contests/:id"
+          element={
+            <PrivateRoute>
+              <ContestDetails />
+            </PrivateRoute>
+          }
+        />
+        <Route
           path="/homeworks"
           element={
             <PrivateRoute>
               <ContestList variant="Homework" />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/homeworks/:id"
+          element={
+            <PrivateRoute>
+              <ContestDetails />
             </PrivateRoute>
           }
         />

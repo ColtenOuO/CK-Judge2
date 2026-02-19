@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
     Clock,
     Database,
@@ -14,11 +14,15 @@ import client from '../api/client';
 const ProblemDetails: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
+    const location = useLocation();
     const [problem, setProblem] = useState<any>(null);
     const [testCases, setTestCases] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [code, setCode] = useState('');
 
+    const backUrl = location.state?.backUrl || '/problems';
+    const contextTitle = location.state?.contextTitle;
+    const contextType = location.state?.contextType || 'Problem List';
     useEffect(() => {
         const fetchProblem = async () => {
             try {
@@ -57,10 +61,13 @@ const ProblemDetails: React.FC = () => {
                 <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
                     <div className="flex items-center gap-4">
                         <button
-                            onClick={() => navigate('/problems')}
-                            className="p-2 hover:bg-slate-800 rounded-lg transition-colors text-slate-400 hover:text-white"
+                            onClick={() => navigate(backUrl)}
+                            className="flex items-center gap-2 p-2 hover:bg-slate-800 rounded-lg transition-colors text-slate-400 hover:text-white"
                         >
                             <ChevronLeft className="w-5 h-5" />
+                            <span className="text-sm hidden md:block">
+                                Back to {contextTitle || (backUrl === '/problems' ? 'Problems' : contextType)}
+                            </span>
                         </button>
                         <div>
                             <h1 className="text-xl font-bold text-white">{problem.title}</h1>

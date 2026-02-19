@@ -41,6 +41,45 @@ def read_user_me(
     """取得當前登入使用者的資訊"""
     return current_user
 
+from fastapi import UploadFile, File
+import shutil
+import os
+from datetime import datetime
+
+@router.post("/me/avatar", response_model=schemas.UserOut)
+def upload_avatar(
+    *,
+    db: Session = Depends(deps.get_db),
+    file: UploadFile = File(...),
+    current_user: models.User = Depends(deps.get_current_user),
+) -> Any:
+    """上傳使用者頭像"""
+    # Ensure directory exists
+    upload_dir = "static/uploads/avatars"
+    if not os.path.exists(upload_dir):
+        os.makedirs(upload_dir)
+    
+    # Generate filename
+    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+    extension = os.path.splitext(file.filename)[1]
+    filename = f"{current_user.id}_{timestamp}{extension}"
+    file_path = f"{upload_dir}/{filename}"
+    
+    # Save file
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+        
+    # Update user avatar_url
+    # Construct URL (assuming server runs on same host/port, returning relative path or full URL if needed)
+    # Here we return relative path which frontend can prepend API_BASE or if served from root
+    # Since we mounted /static at root app, the URL is /static/uploads/avatars/...
+    # But strictly speaking, it depends on how frontend constructs the image URL.
+    # Let's save the absolute URL path from server root.
+    avatar_url = f"/static/uploads/avatars/{filename}"
+    
+    user = crud.user.update(db, db_obj=current_user, obj_in={"avatar_url": avatar_url})
+    return user
+
 @router.get("/{user_id}", response_model=schemas.UserOut)
 def read_user_by_id(
     user_id: UUID,

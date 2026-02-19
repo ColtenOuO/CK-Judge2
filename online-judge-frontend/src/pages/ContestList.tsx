@@ -10,7 +10,9 @@ import {
     Trophy,
     BookOpen,
     X,
-    Save
+    Save,
+    Eye,
+    EyeOff
 } from 'lucide-react';
 import client from '../api/client';
 
@@ -22,6 +24,7 @@ interface Contest {
     end_time: string;
     type: string;
     is_active: boolean;
+    is_visible: boolean;
 }
 
 interface UserProfile {
@@ -45,6 +48,7 @@ const ContestList: React.FC<ContestListProps> = ({ variant }) => {
         description: '',
         start_time: '',
         end_time: '',
+        is_visible: true
     });
 
     useEffect(() => {
@@ -55,7 +59,7 @@ const ContestList: React.FC<ContestListProps> = ({ variant }) => {
         setLoading(true);
         try {
             const [contestsRes, userRes] = await Promise.all([
-                client.get(`/contests/?type=${variant.toUpperCase()}`),
+                client.get(`/contests/?type=${variant}`),
                 client.get('/users/me')
             ]);
             setContests(contestsRes.data);
@@ -69,18 +73,34 @@ const ContestList: React.FC<ContestListProps> = ({ variant }) => {
 
     const handleCreate = async (e: React.FormEvent) => {
         e.preventDefault();
+        const toUTCString = (localDateStr: string) => {
+            return new Date(localDateStr).toISOString();
+        };
+
         try {
             await client.post('/contests/', {
                 ...formData,
-                type: variant.toUpperCase(),
+                start_time: toUTCString(formData.start_time),
+                end_time: toUTCString(formData.end_time),
+                type: variant,
                 is_active: true
             });
             setIsCreating(false);
-            setFormData({ title: '', description: '', start_time: '', end_time: '' });
+            setFormData({ title: '', description: '', start_time: '', end_time: '', is_visible: true });
             fetchData();
         } catch (err) {
             console.error("Failed to create", err);
             alert("Failed to create. Please check inputs.");
+        }
+    };
+
+    const toggleVisibility = async (id: string, currentVisibility: boolean) => {
+        try {
+            await client.put(`/contests/${id}`, { is_visible: !currentVisibility });
+            setContests(contests.map(c => c.id === id ? { ...c, is_visible: !currentVisibility } : c));
+        } catch (err) {
+            console.error("Failed to update visibility", err);
+            alert("Failed to update visibility");
         }
     };
 
@@ -152,8 +172,15 @@ const ContestList: React.FC<ContestListProps> = ({ variant }) => {
                                 key={contest.id}
                                 initial={{ opacity: 0, y: 10 }}
                                 animate={{ opacity: 1, y: 0 }}
-                                className="bg-slate-900/50 border border-slate-800 rounded-xl p-6 hover:border-cyan-500/30 transition-all group"
+                                onClick={() => navigate(`/${variant.toLowerCase()}s/${contest.id}`)}
+                                className={`bg-slate-900/50 border ${!contest.is_visible ? 'border-dashed border-slate-700 opacity-75' : 'border-slate-800'} rounded-xl p-6 hover:border-cyan-500/30 transition-all group relative cursor-pointer`}
                             >
+                                {!contest.is_visible && user?.is_superuser && (
+                                    <div className="absolute top-4 right-4 text-xs font-bold text-slate-500 bg-slate-800 px-2 py-1 rounded">
+                                        HIDDEN
+                                    </div>
+                                )}
+
                                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                                     <div className="flex-1">
                                         <div className="flex items-center gap-4 mb-2">
@@ -163,6 +190,18 @@ const ContestList: React.FC<ContestListProps> = ({ variant }) => {
                                             <span className={`text-xs px-2 py-1 rounded-full border font-bold ${status.color}`}>
                                                 {status.label}
                                             </span>
+                                            {user?.is_superuser && (
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        toggleVisibility(contest.id, contest.is_visible);
+                                                    }}
+                                                    className="p-1 rounded hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
+                                                    title={contest.is_visible ? "Make Hidden" : "Make Visible"}
+                                                >
+                                                    {contest.is_visible ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                                                </button>
+                                            )}
                                         </div>
                                         <p className="text-slate-400 mb-4 line-clamp-2">{contest.description || "No description provided."}</p>
 
@@ -177,14 +216,6 @@ const ContestList: React.FC<ContestListProps> = ({ variant }) => {
                                             </div>
                                         </div>
                                     </div>
-
-                                    <button
-                                        onClick={() => navigate(`/${variant.toLowerCase()}s/${contest.id}`)}
-                                        className="bg-slate-800 hover:bg-slate-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors flex items-center gap-2 whitespace-nowrap"
-                                    >
-                                        Enter {variant}
-                                        <ChevronRight className="w-4 h-4" />
-                                    </button>
                                 </div>
                             </motion.div>
                         );
@@ -257,6 +288,19 @@ const ContestList: React.FC<ContestListProps> = ({ variant }) => {
                                                 required
                                             />
                                         </div>
+                                    </div>
+
+                                    <div className="flex items-center gap-2">
+                                        <input
+                                            type="checkbox"
+                                            id="is_visible"
+                                            checked={formData.is_visible}
+                                            onChange={(e) => setFormData({ ...formData, is_visible: e.target.checked })}
+                                            className="w-4 h-4 rounded border-slate-800 text-cyan-600 focus:ring-cyan-600 bg-slate-950"
+                                        />
+                                        <label htmlFor="is_visible" className="text-sm text-slate-400">
+                                            Visible to students
+                                        </label>
                                     </div>
 
                                     <div className="pt-4 flex justify-end gap-3">

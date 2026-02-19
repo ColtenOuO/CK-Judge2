@@ -21,6 +21,7 @@ class CRUDContest:
             description=obj_in.description,
             start_time=obj_in.start_time,
             end_time=obj_in.end_time,
+            type=obj_in.type,
             is_active=obj_in.is_active,
             created_by_id=created_by_id
         )

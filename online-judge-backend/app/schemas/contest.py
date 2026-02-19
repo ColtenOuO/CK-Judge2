@@ -14,8 +14,14 @@ class ContestProblemCreate(ContestProblemBase):
 class ContestProblemUpdate(ContestProblemBase):
     pass
 
+class MinimalProblem(BaseModel):
+    title: str
+
 class ContestProblemOut(ContestProblemBase):
-    pass
+    problem: Optional[MinimalProblem] = None
+
+    class Config:
+        from_attributes = True
 
 from app.models.contest import ContestType
 
@@ -26,6 +32,7 @@ class ContestBase(BaseModel):
     start_time: datetime
     end_time: datetime
     is_active: bool = True
+    is_visible: bool = True
 
 class ContestCreate(ContestBase):
     problems: List[ContestProblemCreate] = []
@@ -36,6 +43,7 @@ class ContestUpdate(BaseModel):
     start_time: Optional[datetime] = None
     end_time: Optional[datetime] = None
     is_active: Optional[bool] = None
+    is_visible: Optional[bool] = None
     problems: Optional[List[ContestProblemCreate]] = None
 
 class ContestInDBBase(ContestBase):

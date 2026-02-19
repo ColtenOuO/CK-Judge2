@@ -108,7 +108,8 @@ const Dashboard: React.FC = () => {
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="bg-gradient-to-r from-slate-900 via-slate-900 to-slate-800 border border-slate-800 rounded-2xl p-8 mb-8 relative overflow-hidden group"
+                    onClick={() => setIsEditing(true)}
+                    className="bg-gradient-to-r from-slate-900 via-slate-900 to-slate-800 border border-slate-800 rounded-2xl p-8 mb-8 relative overflow-hidden group cursor-pointer hover:border-cyan-500/30 transition-all"
                 >
                     <div className="absolute top-0 right-0 p-4 opacity-100 transition-opacity">
                         <button
@@ -124,7 +125,7 @@ const Dashboard: React.FC = () => {
                         <div className="relative">
                             {user?.avatar_url ? (
                                 <img
-                                    src={user.avatar_url}
+                                    src={user.avatar_url.startsWith('http') ? user.avatar_url : `${client.defaults.baseURL?.replace('/api/v1', '')}${user.avatar_url}`}
                                     alt="Profile"
                                     className="w-32 h-32 rounded-2xl object-cover border-4 border-slate-800 shadow-xl shadow-cyan-500/10"
                                 />
@@ -190,14 +191,45 @@ const Dashboard: React.FC = () => {
 
                                 <div className="space-y-4">
                                     <div>
-                                        <label className="block text-sm font-medium text-slate-400 mb-1">Avatar URL</label>
-                                        <input
-                                            type="text"
-                                            value={editForm.avatar_url}
-                                            onChange={(e) => setEditForm({ ...editForm, avatar_url: e.target.value })}
-                                            className="w-full bg-slate-950 border border-slate-800 rounded p-2 text-white focus:outline-none focus:border-cyan-500"
-                                            placeholder="https://example.com/avatar.jpg"
-                                        />
+                                        <label className="block text-sm font-medium text-slate-400 mb-1">Avatar Image</label>
+                                        <div className="flex items-center gap-4">
+                                            {editForm.avatar_url && (
+                                                <img
+                                                    src={editForm.avatar_url.startsWith('http') ? editForm.avatar_url : `${client.defaults.baseURL?.replace('/api/v1', '')}${editForm.avatar_url}`}
+                                                    alt="Preview"
+                                                    className="w-12 h-12 rounded-full object-cover border border-slate-700"
+                                                />
+                                            )}
+                                            <input
+                                                type="file"
+                                                accept="image/*"
+                                                onChange={async (e) => {
+                                                    if (e.target.files && e.target.files[0]) {
+                                                        const file = e.target.files[0];
+                                                        const formData = new FormData();
+                                                        formData.append('file', file);
+                                                        try {
+                                                            const res = await client.post('/users/me/avatar', formData, {
+                                                                headers: { 'Content-Type': 'multipart/form-data' }
+                                                            });
+                                                            setEditForm({ ...editForm, avatar_url: res.data.avatar_url });
+                                                            // Update main user state immediately
+                                                            setUser(prev => prev ? { ...prev, avatar_url: res.data.avatar_url } : null);
+                                                        } catch (err) {
+                                                            console.error("Failed to upload avatar", err);
+                                                            alert("Failed to upload avatar.");
+                                                        }
+                                                    }
+                                                }}
+                                                className="block w-full text-sm text-slate-500
+                                                    file:mr-4 file:py-2 file:px-4
+                                                    file:rounded-full file:border-0
+                                                    file:text-sm file:font-semibold
+                                                    file:bg-cyan-500/10 file:text-cyan-400
+                                                    hover:file:bg-cyan-500/20
+                                                "
+                                            />
+                                        </div>
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-slate-400 mb-1">Signature</label>

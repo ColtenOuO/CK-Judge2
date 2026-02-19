@@ -41,6 +41,7 @@ class Contest(Base):
     end_time = Column(DateTime(timezone=True), nullable=False)
     
     is_active = Column(Boolean, default=True)
+    is_visible = Column(Boolean, default=True)
     
     created_by_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
     
