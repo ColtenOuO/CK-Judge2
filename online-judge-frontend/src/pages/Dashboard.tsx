@@ -86,6 +86,13 @@ const Dashboard: React.FC = () => {
                                 <PlusCircle className="w-5 h-5" />
                                 <span>Create Problem</span>
                             </button>
+                            <button
+                                onClick={() => navigate('/admin/submissions')}
+                                className="w-full flex items-center gap-3 p-3 rounded-lg text-cyan-400 hover:bg-slate-800 hover:text-cyan-300 transition-all"
+                            >
+                                <Code className="w-5 h-5" />
+                                <span>All Submissions</span>
+                            </button>
                         </div>
                     )}
                 </nav>
@@ -201,9 +208,9 @@ const Dashboard: React.FC = () => {
                                             </td>
                                             <td className="p-4">
                                                 <span className={`inline-block px-2.5 py-1 rounded text-xs font-bold ${sub.status === 'Accepted' ? 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/20' :
-                                                        sub.status === 'Wrong Answer' ? 'text-rose-400 bg-rose-500/10 border border-rose-500/20' :
-                                                            sub.status.includes('Error') ? 'text-amber-400 bg-amber-500/10 border border-amber-500/20' :
-                                                                'text-blue-400 bg-blue-500/10 border border-blue-500/20'
+                                                    sub.status === 'Wrong Answer' ? 'text-rose-400 bg-rose-500/10 border border-rose-500/20' :
+                                                        sub.status.includes('Error') ? 'text-amber-400 bg-amber-500/10 border border-amber-500/20' :
+                                                            'text-blue-400 bg-blue-500/10 border border-blue-500/20'
                                                     }`}>
                                                     {sub.status}
                                                 </span>

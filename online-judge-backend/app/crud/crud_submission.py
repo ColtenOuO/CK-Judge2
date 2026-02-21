@@ -8,11 +8,17 @@ class CRUDSubmission:
     def get(self, db: Session, id: UUID) -> Optional[Submission]:
         return db.query(Submission).filter(Submission.id == id).first()
 
-    def get_by_user(self, db: Session, user_id: UUID, skip: int = 0, limit: int = 100) -> List[Submission]:
-        return db.query(Submission).filter(Submission.user_id == user_id).offset(skip).limit(limit).all()
+    def get_by_user(self, db: Session, user_id: UUID, problem_id: Optional[UUID] = None, skip: int = 0, limit: int = 100) -> List[Submission]:
+        query = db.query(Submission).filter(Submission.user_id == user_id)
+        if problem_id:
+            query = query.filter(Submission.problem_id == problem_id)
+        return query.order_by(Submission.created_at.desc()).offset(skip).limit(limit).all()
 
-    def get_multi(self, db: Session, *, skip: int = 0, limit: int = 100) -> List[Submission]:
-        return db.query(Submission).offset(skip).limit(limit).all()
+    def get_multi(self, db: Session, *, problem_id: Optional[UUID] = None, skip: int = 0, limit: int = 100) -> List[Submission]:
+        query = db.query(Submission)
+        if problem_id:
+            query = query.filter(Submission.problem_id == problem_id)
+        return query.order_by(Submission.created_at.desc()).offset(skip).limit(limit).all()
 
     def create(self, db: Session, *, obj_in: SubmissionCreate, user_id: UUID) -> Submission:
         db_obj = Submission(

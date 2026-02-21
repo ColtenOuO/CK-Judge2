@@ -1,3 +1,4 @@
+import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
@@ -10,6 +11,7 @@ import ContestList from './pages/ContestList';
 import ContestDetails from './pages/ContestDetails';
 import SubmissionDetails from './pages/SubmissionDetails';
 import SubmissionList from './pages/SubmissionList';
+import AdminSubmissions from './pages/AdminSubmissions';
 import './index.css';
 
 function App() {
@@ -108,6 +110,14 @@ function App() {
           element={
             <PrivateRoute>
               <SubmissionDetails />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/admin/submissions"
+          element={
+            <PrivateRoute>
+              <AdminSubmissions />
             </PrivateRoute>
           }
         />

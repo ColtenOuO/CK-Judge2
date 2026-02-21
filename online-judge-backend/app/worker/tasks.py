@@ -9,14 +9,12 @@ from app.worker.sandbox import Sandbox
 
 logger = logging.getLogger(__name__)
 
-TEMP_DIR = "/tmp/judge_workspace"
-if not os.path.exists(TEMP_DIR):
-    os.makedirs(TEMP_DIR)
-
 @celery_app.task
 def judge_submission(submission_id: str):
     db = SessionLocal()
     submission = None
+    sandbox = None
+    
     try:
         submission = crud.submission.get(db, id=submission_id)
         if not submission:
@@ -29,14 +27,18 @@ def judge_submission(submission_id: str):
         language = submission.language
         code = submission.code
 
-        workspace = os.path.join(TEMP_DIR, str(submission_id))
-        if not os.path.exists(workspace):
-            os.makedirs(workspace)
+        # Initialize isolate sandbox. It uses box ID based on part of submission ID or hash
+        # Isolate allows concurrent boxes by passing a unique integer ID (0-999)
+        # Using hash of string mod 900 + 10 as safe box ID
+        box_id = (hash(str(submission_id)) % 900) + 10
+        sandbox = Sandbox(box_id=box_id)
+        box_path = os.path.join(sandbox.box_path, "box")
 
         filename = "main"
         extension = ".py" if language == "Python" else ".cpp" if language == "C++" else ".c"
-        code_path = os.path.join(workspace, f"{filename}{extension}")
+        code_path = os.path.join(box_path, f"{filename}{extension}")
         
+        # Write code file inside the isolated box
         with open(code_path, "w") as f:
             f.write(code)
 
@@ -44,13 +46,18 @@ def judge_submission(submission_id: str):
         compile_error = None
 
         if language == "Python":
-            executable_cmd = ["python3", code_path]
+            # Python script inside box
+            executable_cmd = ["/usr/local/bin/python3", f"{filename}{extension}"]
         elif language == "C++":
-            exe_path = os.path.join(workspace, "main.out")
+            exe_path = os.path.join(box_path, "main.out")
             compile_cmd = ["g++", code_path, "-o", exe_path, "-O2"]
             try:
+                # Compile natively outside the sandbox for simplicity and performance
+                # as Isolate is mostly used to secure the user execution
                 subprocess.check_output(compile_cmd, stderr=subprocess.STDOUT)
-                executable_cmd = [exe_path]
+                
+                # Executable relative to isolate box root
+                executable_cmd = ["./main.out"]
             except subprocess.CalledProcessError as e:
                 compile_error = e.output.decode()
         
@@ -73,15 +80,17 @@ def judge_submission(submission_id: str):
         max_memory = 0
         results_detail = []
         final_status = "Accepted"
-        
-        sandbox = Sandbox()
 
         if not test_cases:
              final_status = "Skipped (No Test Cases)"
 
         for idx, tc in enumerate(test_cases):
-            input_path = os.path.join(workspace, f"{idx}.in")
-            output_path = os.path.join(workspace, f"{idx}.out")
+            input_filename = f"{idx}.in"
+            output_filename = f"{idx}.out"
+            err_filename = f"{idx}.err"
+            
+            input_path = os.path.join(box_path, input_filename)
+            output_path = os.path.join(box_path, output_filename)
             
             with open(input_path, "w") as f:
                 f.write(tc.input_data)
@@ -91,17 +100,19 @@ def judge_submission(submission_id: str):
 
             res = sandbox.run(
                 command=executable_cmd,
-                stdin_path=input_path,
-                stdout_path=output_path,
-                stderr_path=os.path.join(workspace, f"{idx}.err"),
+                stdin_file=input_filename,
+                stdout_file=output_filename,
+                stderr_file=err_filename,
                 time_limit_ms=limit_time,
                 memory_limit_mb=limit_mem
             )
 
             if res["status"] == "Accepted":
                 actual_output = ""
-                with open(output_path, "r") as f:
-                    actual_output = f.read().strip()
+                # Read output generated inside the box
+                if os.path.exists(output_path):
+                    with open(output_path, "r") as f:
+                        actual_output = f.read().strip()
                 
                 expected_output = tc.output_data.strip()
                 if actual_output == expected_output:
@@ -125,6 +136,11 @@ def judge_submission(submission_id: str):
                 "return_code": res["return_code"]
             })
 
+            # Clean up test case files for the next loop (inside the box)
+            for f in [input_path, output_path, os.path.join(box_path, err_filename)]:
+                if os.path.exists(f):
+                    os.remove(f)
+
         crud.submission.update_result(
             db,
             submission_id=submission.id,
@@ -140,6 +156,6 @@ def judge_submission(submission_id: str):
         if submission:
             crud.submission.update_status(db, submission_id=submission.id, status="System Error")
     finally:
-        if os.path.exists(workspace):
-            shutil.rmtree(workspace)
+        if sandbox:
+            sandbox.cleanup()
         db.close()

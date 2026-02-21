@@ -22,6 +22,7 @@ class SubmissionUpdate(SubmissionBase):
 class SubmissionOut(SubmissionBase):
     id: UUID
     user_id: UUID
+    username: Optional[str] = None
     problem_title: Optional[str] = None
     status: str
     total_score: int

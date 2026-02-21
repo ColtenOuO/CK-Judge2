@@ -17,21 +17,25 @@ const ProblemDetails: React.FC = () => {
     const location = useLocation();
     const [problem, setProblem] = useState<any>(null);
     const [testCases, setTestCases] = useState<any[]>([]);
+    const [user, setUser] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [code, setCode] = useState('');
 
     const backUrl = location.state?.backUrl || '/problems';
     const contextTitle = location.state?.contextTitle;
     const contextType = location.state?.contextType || 'Problem List';
+
     useEffect(() => {
         const fetchProblem = async () => {
             try {
-                const [probRes, tcRes] = await Promise.all([
+                const [probRes, tcRes, userRes] = await Promise.all([
                     client.get(`/problems/${id}`),
-                    client.get(`/problems/${id}/test_cases`)
+                    client.get(`/problems/${id}/test_cases`),
+                    client.get(`/users/me`)
                 ]);
                 setProblem(probRes.data);
                 setTestCases(tcRes.data.filter((tc: any) => tc.is_sample));
+                setUser(userRes.data);
                 setLoading(false);
             } catch (err) {
                 console.error("Fetch problem error", err);
@@ -110,6 +114,16 @@ const ProblemDetails: React.FC = () => {
                             </div>
                         )}
                     </div>
+
+                    {user?.is_superuser && (
+                        <button
+                            onClick={() => navigate(`/admin/submissions?problem_id=${id}`)}
+                            className="hidden md:flex items-center gap-2 bg-slate-800 hover:bg-cyan-600/20 text-cyan-400 border border-slate-700 hover:border-cyan-500/50 px-4 py-2 rounded-lg font-bold text-sm transition-all shadow-md"
+                        >
+                            <Terminal className="w-4 h-4" />
+                            View All Submissions
+                        </button>
+                    )}
                 </div>
             </header>
 

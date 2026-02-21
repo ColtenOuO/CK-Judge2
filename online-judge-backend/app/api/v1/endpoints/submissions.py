@@ -1,4 +1,4 @@
-from typing import Any, List
+from typing import Any, List, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from uuid import UUID
@@ -29,6 +29,7 @@ def create_submission(
 @router.get("/", response_model=List[schemas.SubmissionOut])
 def read_submissions(
     db: Session = Depends(deps.get_db),
+    problem_id: Optional[UUID] = None,
     skip: int = 0,
     limit: int = 100,
     current_user: models.User = Depends(deps.get_current_user),
@@ -37,9 +38,9 @@ def read_submissions(
     Retrieve submissions.
     """
     if current_user.is_superuser:
-        submissions = crud.submission.get_multi(db, skip=skip, limit=limit)
+        submissions = crud.submission.get_multi(db, problem_id=problem_id, skip=skip, limit=limit)
     else:
-        submissions = crud.submission.get_by_user(db=db, user_id=current_user.id, skip=skip, limit=limit)
+        submissions = crud.submission.get_by_user(db=db, user_id=current_user.id, problem_id=problem_id, skip=skip, limit=limit)
     return submissions
 
 @router.get("/{id}", response_model=schemas.SubmissionOut)

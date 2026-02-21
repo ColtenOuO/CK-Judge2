@@ -33,3 +33,7 @@ class Submission(Base):
     @property
     def problem_title(self):
         return self.problem.title if self.problem else "Unknown Problem"
+
+    @property
+    def username(self):
+        return self.user.username if self.user else "Unknown User"

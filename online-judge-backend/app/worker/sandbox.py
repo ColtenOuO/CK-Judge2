@@ -1,94 +1,42 @@
 import os
-import time
 import subprocess
-import signal
-import uuid
 import logging
-import resource
-import psutil
 from typing import Dict, Any
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-CGROUP_ROOT = "/sys/fs/cgroup"
-CGROUP_CPU = os.path.join(CGROUP_ROOT, "cpu")
-CGROUP_MEMORY = os.path.join(CGROUP_ROOT, "memory")
-
 class Sandbox:
-    def __init__(self, cgroup_name: str = None):
-        self.cgroup_name = cgroup_name or f"judge_worker_{uuid.uuid4().hex}"
-        self.cpu_cgroup_path = os.path.join(CGROUP_CPU, self.cgroup_name)
-        self.mem_cgroup_path = os.path.join(CGROUP_MEMORY, self.cgroup_name)
+    def __init__(self, box_id: int = 0):
+        # Allow multiple workers to run different boxes if configured
+        self.box_id = box_id
+        self.box_path = None
+        self._init_isolate()
 
-    def _setup_cgroup(self, cpu_limit_ms: int, mem_limit_mb: int):
+    def _init_isolate(self):
         try:
-            if not os.path.exists(self.cpu_cgroup_path):
-                os.makedirs(self.cpu_cgroup_path)
-            
-            with open(os.path.join(self.cpu_cgroup_path, "cpu.cfs_period_us"), "w") as f:
-                f.write("100000")
-            with open(os.path.join(self.cpu_cgroup_path, "cpu.cfs_quota_us"), "w") as f:
-                f.write("100000") 
+            # isolate --init --cg returns the path to the initialized box directory
+            cmd = ["isolate", "--cg", "-b", str(self.box_id), "--init"]
+            output = subprocess.check_output(cmd, stderr=subprocess.STDOUT)
+            self.box_path = output.decode("utf-8").strip()
+            logger.info(f"Initialized isolate box {self.box_id} at {self.box_path}")
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Failed to initialize isolate box: {e.output.decode('utf-8')}")
+            raise Exception("Sandbox Initialization Failed")
 
-            if not os.path.exists(self.mem_cgroup_path):
-                os.makedirs(self.mem_cgroup_path)
-            
-            limit_bytes = mem_limit_mb * 1024 * 1024
-            with open(os.path.join(self.mem_cgroup_path, "memory.limit_in_bytes"), "w") as f:
-                f.write(str(limit_bytes))
-
-        except Exception as e:
-            logger.error(f"Failed to setup cgroup: {e}")
-            raise
-
-    def _add_pid_to_cgroup(self, pid: int):
+    def _cleanup_isolate(self):
         try:
-            with open(os.path.join(self.cpu_cgroup_path, "cgroup.procs"), "w") as f:
-                f.write(str(pid))
-            with open(os.path.join(self.mem_cgroup_path, "cgroup.procs"), "w") as f:
-                f.write(str(pid))
-        except Exception as e:
-            logger.error(f"Failed to add pid to cgroup: {e}")
-            raise
-
-    def _cleanup_cgroup(self):
-        try:
-            if os.path.exists(self.cpu_cgroup_path):
-                os.rmdir(self.cpu_cgroup_path)
-            if os.path.exists(self.mem_cgroup_path):
-                os.rmdir(self.mem_cgroup_path)
-        except Exception as e:
-            logger.warning(f"Failed to cleanup cgroup: {e}")
-
-    def _preexec_fn(self):
-        resource.setrlimit(resource.RLIMIT_FSIZE, (64 * 1024 * 1024, 64 * 1024 * 1024))
-        
-        try:
-            import seccomp
-            f = seccomp.SyscallFilter(defaction=seccomp.KILL)
-            
-            allowed_syscalls = [
-                'read', 'write', 'open', 'close', 'stat', 'fstat', 'lseek', 'brk', 'mmap', 'munmap',
-                'access', 'execve', 'exit', 'exit_group', 'arch_prctl', 'time', 'gettimeofday', 
-                'sysinfo', 'getcwd', 'readlink', 'uname', 'futex', 'lstat', 'readlink', 'fcntl'
-            ]
-            
-            for call in allowed_syscalls:
-                f.add_rule(seccomp.ALLOW, call)
-                
-            f.load()
-            
-        except ImportError:
-            pass
-        except Exception:
-            pass
+            cmd = ["isolate", "--cg", "-b", str(self.box_id), "--cleanup"]
+            subprocess.check_call(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            logger.info(f"Cleaned up isolate box {self.box_id}")
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Failed to cleanup isolate box: {e}")
 
     def run(self, 
             command: list, 
-            stdin_path: str = None, 
-            stdout_path: str = None, 
-            stderr_path: str = None,
+            stdin_file: str = None,
+            stdout_file: str = None,
+            stderr_file: str = None,
             time_limit_ms: int = 1000, 
             memory_limit_mb: int = 256
         ) -> Dict[str, Any]:
@@ -100,79 +48,90 @@ class Sandbox:
             "return_code": 0
         }
 
-        try:
-            self._setup_cgroup(time_limit_ms, memory_limit_mb)
-        except Exception:
-            result["status"] = "Internal Error (Cgroup Setup)"
-            return result
+        # The meta file stores the isolated execution's resource footprints and exit details
+        meta_file = f"/tmp/isolate_meta_{self.box_id}.txt"
 
-        stdin_file = open(stdin_path, "r") if stdin_path else None
-        stdout_file = open(stdout_path, "w") if stdout_path else None
-        stderr_file = open(stderr_path, "w") if stderr_path else None
+        # Time limits for isolate are in seconds (floating point allowed)
+        time_limit_sec = time_limit_ms / 1000.0
+        # Wall time typically slightly higher to account for startup
+        wall_time_sec = time_limit_sec + 1.0
 
-        process = None
-        start_time = time.time()
-
-        try:
-            process = subprocess.Popen(
-                command,
-                stdin=stdin_file,
-                stdout=stdout_file,
-                stderr=stderr_file,
-                preexec_fn=self._preexec_fn,
-                cwd=None,
-                env=None
-            )
+        # Base isolate command with resource constraints
+        isolate_cmd = [
+            "isolate", 
+            "--cg", 
+            "-b", str(self.box_id),
+            "-M", meta_file,                 # Output meta info to this file
+            "-t", str(time_limit_sec),       # CPU time limit in seconds
+            "-w", str(wall_time_sec),        # Wall clock time limit
+            "-m", str(memory_limit_mb * 1024)      # Memory limit in KB
+        ]
+        
+        if stdin_file:
+            isolate_cmd.append(f"--stdin={stdin_file}")
+        if stdout_file:
+            isolate_cmd.append(f"--stdout={stdout_file}")
+        if stderr_file:
+            isolate_cmd.append(f"--stderr={stderr_file}")
             
-            self._add_pid_to_cgroup(process.pid)
+        isolate_cmd.extend(["--run", "--"])
+        
+        # Isolate runs the command using the paths relative to the box directory!
+        # Thus the executable must be relative to the sandbox or accessible globally limit.
+        full_cmd = isolate_cmd + command
 
-            ps_proc = psutil.Process(process.pid)
+        try:
+            logger.info(f"Running isolate command: {' '.join(full_cmd)}")
             
-            while process.poll() is None:
-                if (time.time() - start_time) * 1000 > time_limit_ms * 2:
-                    process.kill()
+            # Run the command synchronously; isolate handles all timeouts natively.
+            proc = subprocess.run(full_cmd, capture_output=True, text=True)
+            
+            # The executable process's exit code is returned by isolate
+            result["return_code"] = proc.returncode
+
+            # Parse the meta file generated by isolate
+            meta_data = {}
+            if os.path.exists(meta_file):
+                with open(meta_file, "r") as f:
+                    for line in f:
+                        if ":" in line:
+                            key, val = line.strip().split(":", 1)
+                            meta_data[key] = val
+            
+            time_used_sec = float(meta_data.get("time", 0.0))
+            result["time_used_ms"] = int(time_used_sec * 1000)
+            result["memory_used_kb"] = int(meta_data.get("cg-mem", meta_data.get("max-rss", 0)))
+            
+            # Determine execution status based on Isolate's meta codes
+            if "status" in meta_data:
+                status_code = meta_data["status"]
+                
+                if status_code == "TO":
                     result["status"] = "Time Limit Exceeded"
-                    break
-                
-                try:
-                    mem_info = ps_proc.memory_info()
-                    result["memory_used_kb"] = max(result["memory_used_kb"], mem_info.rss / 1024)
-                    
-                    if result["memory_used_kb"] > memory_limit_mb * 1024:
-                        process.kill()
+                elif status_code == "SG":
+                    # Killed by signal (often Segfault or OOM)
+                    message = meta_data.get("message", "")
+                    if "Out of memory" in message:
                         result["status"] = "Memory Limit Exceeded"
-                        break
-                except (psutil.NoSuchProcess, psutil.AccessDenied):
-                     break
-                
-                time.sleep(0.01)
-
-            process.wait()
-            end_time = time.time()
-            result["time_used_ms"] = int((end_time - start_time) * 1000)
-            result["return_code"] = process.returncode
-
-            if result["status"] == "Accepted":
-                if process.returncode != 0:
-                    if process.returncode == -signal.SIGKILL: 
-                        if result["memory_used_kb"] > memory_limit_mb * 1024 * 0.9:
-                            result["status"] = "Memory Limit Exceeded"
-                        else:
-                             result["status"] = "Time Limit Exceeded"
-                    elif process.returncode == -signal.SIGSEGV:
-                         result["status"] = "Runtime Error (SIGSEGV)"
-                    elif process.returncode == -signal.SIGSYS:
-                         result["status"] = "Runtime Error (System Call Forbidden)"
                     else:
-                         result["status"] = "Runtime Error (Non-zero exit)"
+                        result["status"] = "Runtime Error"
+                elif status_code == "RE":
+                    result["status"] = "Runtime Error"
+                elif status_code == "XX":
+                    result["status"] = "System Error"
+            else:
+                # If there's no status field, the program exited normally. Check the exit code.
+                if result["return_code"] != 0:
+                    result["status"] = "Runtime Error"
 
         except Exception as e:
-            logger.error(f"Execution failed: {e}")
-            result["status"] = "Internal Error"
+            logger.error(f"Isolate execution failed: {e}")
+            result["status"] = "System Error"
         finally:
-            if stdin_file: stdin_file.close()
-            if stdout_file: stdout_file.close()
-            if stderr_file: stderr_file.close()
-            self._cleanup_cgroup()
+            if os.path.exists(meta_file):
+                os.remove(meta_file)
 
         return result
+
+    def cleanup(self):
+        self._cleanup_isolate()

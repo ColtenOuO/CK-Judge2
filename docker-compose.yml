@@ -3,7 +3,7 @@ version: '3.8'
 services:
   db:
     image: postgres:15-alpine
-    env_file: ./online-judge-backend/.env
+    env_file: ./.env
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
@@ -16,7 +16,7 @@ services:
       - "8000:8000"
     volumes:
       - ./online-judge-backend:/src
-    env_file: ./online-judge-backend/.env
+    env_file: ./.env
     depends_on:
       - db
       - redis
@@ -24,10 +24,11 @@ services:
   worker:
     build: ./online-judge-backend
     command: celery -A app.core.celery_app worker --loglevel=info
+    privileged: true
     volumes:
       - ./online-judge-backend:/src
       - /var/run/docker.sock:/var/run/docker.sock
-    env_file: ./online-judge-backend/.env
+    env_file: ./.env
     environment:
       - C_FORCE_ROOT=true
     depends_on:
@@ -35,7 +36,10 @@ services:
       - redis
 
   frontend:
-    build: ./online-judge-frontend
+    build:
+      context: ./online-judge-frontend
+      args:
+        VITE_API_URL: ${VITE_API_URL:-https://ckjudge-api.coltengroup.org/api/v1}
     ports:
       - "3000:80"
     depends_on:
