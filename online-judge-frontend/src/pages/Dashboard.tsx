@@ -16,6 +16,7 @@ interface UserProfile {
 const Dashboard: React.FC = () => {
     const navigate = useNavigate();
     const [user, setUser] = useState<UserProfile | null>(null);
+    const [stats, setStats] = useState({ solved_count: 0, submission_count: 0, rank: 0 });
     const [isEditing, setIsEditing] = useState(false);
     const [editForm, setEditForm] = useState({ avatar_url: '', signature: '' });
     const [recentSubmissions, setRecentSubmissions] = useState([]);
@@ -23,12 +24,14 @@ const Dashboard: React.FC = () => {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const [userRes, subRes] = await Promise.all([
+                const [userRes, statsRes, subRes] = await Promise.all([
                     client.get('/users/me'),
+                    client.get('/users/me/stats'),
                     client.get('/submissions/?limit=5')
                 ]);
 
                 setUser(userRes.data);
+                setStats(statsRes.data);
                 setEditForm({
                     avatar_url: userRes.data.avatar_url || '',
                     signature: userRes.data.signature || ''
@@ -74,7 +77,7 @@ const Dashboard: React.FC = () => {
                     <SidebarItem icon={<Code />} label="Problem Set" onClick={() => navigate('/problems')} />
                     <SidebarItem icon={<Trophy />} label="Contests" onClick={() => navigate('/contests')} />
                     <SidebarItem icon={<BookOpen />} label="Homework" onClick={() => navigate('/homeworks')} />
-                    <SidebarItem icon={<Users />} label="Rankings" />
+                    <SidebarItem icon={<Users />} label="Rankings" onClick={() => navigate('/rankings')} />
 
                     {user?.is_superuser && (
                         <div className="pt-4 mt-4 border-t border-slate-800">
@@ -92,6 +95,13 @@ const Dashboard: React.FC = () => {
                             >
                                 <Code className="w-5 h-5" />
                                 <span>All Submissions</span>
+                            </button>
+                            <button
+                                onClick={() => navigate('/admin/users')}
+                                className="w-full flex items-center gap-3 p-3 rounded-lg text-indigo-400 hover:bg-slate-800 hover:text-indigo-300 transition-all"
+                            >
+                                <Users className="w-5 h-5" />
+                                <span>User Management</span>
                             </button>
                         </div>
                     )}
@@ -173,9 +183,9 @@ const Dashboard: React.FC = () => {
                 </motion.div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-                    <StatCard title="Problems Solved" value="0" />
-                    <StatCard title="Active Contests" value="0" />
-                    <StatCard title="Global Rank" value="-" />
+                    <StatCard title="Problems Solved" value={stats.solved_count.toString()} />
+                    <StatCard title="Total Submissions" value={stats.submission_count.toString()} />
+                    <StatCard title="Global Rank" value={`#${stats.rank}`} />
                 </div>
 
                 <div className="p-6 bg-slate-900/50 border border-slate-800 rounded-xl overflow-hidden">

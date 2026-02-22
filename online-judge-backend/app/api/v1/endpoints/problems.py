@@ -209,10 +209,56 @@ def read_test_cases(
     problem_id: UUID,
     skip: int = 0,
     limit: int = 100,
-    current_user: models.User = Depends(deps.get_current_active_superuser),
+    current_user: models.User = Depends(deps.get_current_user),
 ) -> Any:
-    """List test cases for a problem (Admin only)."""
+    """List test cases for a problem (filter samples for normal users)."""
     problem = crud.problem.get(db, id=problem_id)
     if not problem:
         raise HTTPException(status_code=404, detail="Problem not found")
-    return crud.test_case.get_by_problem(db, problem_id=problem_id, skip=skip, limit=limit)
+        
+    test_cases = crud.test_case.get_by_problem(db, problem_id=problem_id, skip=skip, limit=limit)
+    if not current_user.is_superuser:
+        test_cases = [tc for tc in test_cases if tc.is_sample]
+        
+    return test_cases
+
+@router.get("/{problem_id}/leaderboard")
+def read_problem_leaderboard(
+    problem_id: UUID,
+    db: Session = Depends(deps.get_db),
+    skip: int = 0,
+    limit: int = 10,
+) -> Any:
+    """Get Top Coders leaderboard for a specific problem."""
+    accepted_subs = db.query(models.Submission).filter(
+        models.Submission.problem_id == problem_id, 
+        models.Submission.status == "Accepted"
+    ).all()
+    
+    best_per_user = {}
+    for sub in accepted_subs:
+        uid = sub.user_id
+        if uid not in best_per_user:
+            best_per_user[uid] = sub
+        else:
+            cur_best = best_per_user[uid]
+            # Primary: memory, Secondary: time
+            if (sub.memory_used < cur_best.memory_used) or \
+               (sub.memory_used == cur_best.memory_used and sub.time_used < cur_best.time_used):
+                best_per_user[uid] = sub
+                
+    sorted_subs = sorted(list(best_per_user.values()), key=lambda x: (x.memory_used, x.time_used))
+    
+    result_subs = sorted_subs[skip : skip + limit]
+    
+    return [
+        {
+            "id": str(sub.id),
+            "username": sub.user.username,
+            "avatar_url": sub.user.avatar_url,
+            "memory_used": sub.memory_used,
+            "time_used": sub.time_used,
+            "language": sub.language,
+            "created_at": sub.created_at
+        } for sub in result_subs
+    ]

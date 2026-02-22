@@ -12,6 +12,8 @@ import ContestDetails from './pages/ContestDetails';
 import SubmissionDetails from './pages/SubmissionDetails';
 import SubmissionList from './pages/SubmissionList';
 import AdminSubmissions from './pages/AdminSubmissions';
+import UserManagement from './pages/UserManagement';
+import Rankings from './pages/Rankings';
 import './index.css';
 
 function App() {
@@ -118,6 +120,22 @@ function App() {
           element={
             <PrivateRoute>
               <AdminSubmissions />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/admin/users"
+          element={
+            <PrivateRoute>
+              <UserManagement />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/rankings"
+          element={
+            <PrivateRoute>
+              <Rankings />
             </PrivateRoute>
           }
         />

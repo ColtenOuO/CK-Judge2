@@ -7,8 +7,12 @@ import {
     Send,
     Code as CodeIcon,
     Terminal,
-    BookOpen
+    BookOpen,
+    Trophy,
+    User,
+    Award
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import client from '../api/client';
 
 const ProblemDetails: React.FC = () => {
@@ -20,6 +24,8 @@ const ProblemDetails: React.FC = () => {
     const [user, setUser] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [code, setCode] = useState('');
+    const [leaderboard, setLeaderboard] = useState<any[]>([]);
+    const [showLeaderboard, setShowLeaderboard] = useState(false);
 
     const backUrl = location.state?.backUrl || '/problems';
     const contextTitle = location.state?.contextTitle;
@@ -28,14 +34,16 @@ const ProblemDetails: React.FC = () => {
     useEffect(() => {
         const fetchProblem = async () => {
             try {
-                const [probRes, tcRes, userRes] = await Promise.all([
+                const [probRes, tcRes, userRes, lbRes] = await Promise.all([
                     client.get(`/problems/${id}`),
                     client.get(`/problems/${id}/test_cases`),
-                    client.get(`/users/me`)
+                    client.get(`/users/me`),
+                    client.get(`/problems/${id}/leaderboard`)
                 ]);
                 setProblem(probRes.data);
                 setTestCases(tcRes.data.filter((tc: any) => tc.is_sample));
                 setUser(userRes.data);
+                setLeaderboard(lbRes.data);
                 setLoading(false);
             } catch (err) {
                 console.error("Fetch problem error", err);
@@ -115,15 +123,24 @@ const ProblemDetails: React.FC = () => {
                         )}
                     </div>
 
-                    {user?.is_superuser && (
+                    <div className="flex items-center gap-3">
                         <button
-                            onClick={() => navigate(`/admin/submissions?problem_id=${id}`)}
-                            className="hidden md:flex items-center gap-2 bg-slate-800 hover:bg-cyan-600/20 text-cyan-400 border border-slate-700 hover:border-cyan-500/50 px-4 py-2 rounded-lg font-bold text-sm transition-all shadow-md"
+                            onClick={() => setShowLeaderboard(true)}
+                            className="flex items-center gap-2 bg-gradient-to-r from-amber-500/10 to-orange-500/10 hover:from-amber-500/20 hover:to-orange-500/20 border border-amber-500/30 text-amber-400 px-4 py-2 rounded-lg font-bold text-sm transition-all shadow-md"
                         >
-                            <Terminal className="w-4 h-4" />
-                            View All Submissions
+                            <Trophy className="w-4 h-4" />
+                            Top Coders
                         </button>
-                    )}
+                        {user?.is_superuser && (
+                            <button
+                                onClick={() => navigate(`/admin/submissions?problem_id=${id}`)}
+                                className="hidden md:flex items-center gap-2 bg-slate-800 hover:bg-cyan-600/20 text-cyan-400 border border-slate-700 hover:border-cyan-500/50 px-4 py-2 rounded-lg font-bold text-sm transition-all shadow-md"
+                            >
+                                <Terminal className="w-4 h-4" />
+                                View All Submissions
+                            </button>
+                        )}
+                    </div>
                 </div>
             </header>
 
@@ -229,6 +246,83 @@ const ProblemDetails: React.FC = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Leaderboard Modal */}
+            <AnimatePresence>
+                {showLeaderboard && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-3xl overflow-hidden shadow-2xl relative"
+                        >
+                            <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl -z-10 pointer-events-none"></div>
+
+                            <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-900/80">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 bg-amber-500/20 rounded-xl flex items-center justify-center border border-amber-500/30">
+                                        <Award className="w-5 h-5 text-amber-400" />
+                                    </div>
+                                    <h2 className="text-xl font-bold text-white">Top Coders</h2>
+                                </div>
+                                <button
+                                    onClick={() => setShowLeaderboard(false)}
+                                    className="text-slate-400 hover:text-white transition-colors"
+                                >
+                                    Close
+                                </button>
+                            </div>
+
+                            <div className="p-6 max-h-[60vh] overflow-y-auto">
+                                {leaderboard.length === 0 ? (
+                                    <div className="text-center py-10 text-slate-500 italic">
+                                        No one has solved this problem yet. Be the first!
+                                    </div>
+                                ) : (
+                                    <div className="space-y-3">
+                                        {leaderboard.map((sub, index) => (
+                                            <div
+                                                key={sub.id}
+                                                className={`flex items-center justify-between p-4 rounded-xl border ${index === 0 ? 'bg-amber-500/5 border-amber-500/30' : 'bg-slate-800/50 border-slate-700/50 hover:bg-slate-800 transition-colors'}`}
+                                            >
+                                                <div className="flex items-center gap-4">
+                                                    <div className={`font-bold w-6 text-center ${index === 0 ? 'text-amber-400 text-lg' : index === 1 ? 'text-slate-300' : index === 2 ? 'text-amber-700' : 'text-slate-500'}`}>
+                                                        #{index + 1}
+                                                    </div>
+                                                    {sub.avatar_url ? (
+                                                        <img src={sub.avatar_url.startsWith('http') ? sub.avatar_url : `${client.defaults.baseURL?.replace('/api/v1', '')}${sub.avatar_url}`} alt="avatar" className="w-10 h-10 rounded-full border border-slate-700 object-cover" />
+                                                    ) : (
+                                                        <div className="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center">
+                                                            <User className="w-5 h-5 text-slate-400" />
+                                                        </div>
+                                                    )}
+                                                    <div>
+                                                        <div className="font-bold text-slate-200">{sub.username}</div>
+                                                        <div className="text-xs text-slate-500">{new Date(sub.created_at).toLocaleDateString()}</div>
+                                                    </div>
+                                                </div>
+
+                                                <div className="flex items-center gap-6">
+                                                    <div className="text-right">
+                                                        <div className="text-xs text-slate-500 uppercase font-bold tracking-wider mb-1">Time</div>
+                                                        <div className="text-sm font-mono text-cyan-400">{sub.time_used}ms</div>
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <div className="text-xs text-slate-500 uppercase font-bold tracking-wider mb-1">Memory</div>
+                                                        <div className="text-sm font-mono text-emerald-400">{sub.memory_used}KB</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
         </div >
     );
 };

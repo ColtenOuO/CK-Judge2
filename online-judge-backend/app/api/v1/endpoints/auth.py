@@ -1,6 +1,6 @@
 from datetime import timedelta
 from typing import Any
-from fastapi import APIRouter, Depends, HTTPException, Body
+from fastapi import APIRouter, Depends, HTTPException, Body, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 import secrets
@@ -15,6 +15,7 @@ router = APIRouter()
 
 @router.post("/login/access-token", response_model=schemas.Token)
 def login_access_token(
+    request: Request,
     db: Session = Depends(deps.get_db), 
     form_data: OAuth2PasswordRequestForm = Depends()
 ) -> Any:
@@ -25,6 +26,10 @@ def login_access_token(
         raise HTTPException(status_code=400, detail="Incorrect email or password")
     elif not user.is_active:
         raise HTTPException(status_code=400, detail="Inactive user")
+        
+    # Record IP address
+    if request.client and request.client.host:
+        crud.user.update(db, db_obj=user, obj_in={"last_login_ip": request.client.host})
     
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     return {

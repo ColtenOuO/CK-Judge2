@@ -30,6 +30,7 @@ def create_submission(
 def read_submissions(
     db: Session = Depends(deps.get_db),
     problem_id: Optional[UUID] = None,
+    user_id: Optional[UUID] = None,
     skip: int = 0,
     limit: int = 100,
     current_user: models.User = Depends(deps.get_current_user),
@@ -38,7 +39,7 @@ def read_submissions(
     Retrieve submissions.
     """
     if current_user.is_superuser:
-        submissions = crud.submission.get_multi(db, problem_id=problem_id, skip=skip, limit=limit)
+        submissions = crud.submission.get_multi(db, problem_id=problem_id, user_id=user_id, skip=skip, limit=limit)
     else:
         submissions = crud.submission.get_by_user(db=db, user_id=current_user.id, problem_id=problem_id, skip=skip, limit=limit)
     return submissions

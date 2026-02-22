@@ -34,12 +34,113 @@ def create_user(
         )
     return crud.user.create(db, obj_in=user_in)
 
+@router.post("/bulk", response_model=dict, status_code=status.HTTP_201_CREATED)
+def create_users_bulk(
+    *,
+    db: Session = Depends(deps.get_db),
+    users_in: List[schemas.UserCreate],
+    current_user: models.User = Depends(deps.get_current_active_superuser),
+) -> Any:
+    """大量註冊新帳號 (僅限管理員)"""
+    created_count = 0
+    errors = []
+    
+    for i, user_in in enumerate(users_in):
+        if crud.user.get_by_email(db, email=user_in.email):
+            errors.append(f"Row {i+1}: Email {user_in.email} already registered.")
+            continue
+            
+        if db.query(models.User).filter(models.User.username == user_in.username).first():
+            errors.append(f"Row {i+1}: Username {user_in.username} already taken.")
+            continue
+            
+        crud.user.create(db, obj_in=user_in)
+        created_count += 1
+        
+    return {
+        "success": True,
+        "created_count": created_count,
+        "errors": errors
+    }
+
 @router.get("/me", response_model=schemas.UserOut)
 def read_user_me(
     current_user: models.User = Depends(deps.get_current_user),
 ) -> Any:
     """取得當前登入使用者的資訊"""
     return current_user
+
+from sqlalchemy import func
+
+@router.get("/me/stats")
+def read_user_stats(
+    db: Session = Depends(deps.get_db),
+    current_user: models.User = Depends(deps.get_current_user),
+) -> Any:
+    """取得當前使用者的統計資訊（解題數、提交數、排名）"""
+    solved_count = db.query(models.Submission.problem_id)\
+        .filter(models.Submission.user_id == current_user.id, models.Submission.status == "Accepted")\
+        .distinct().count()
+        
+    submission_count = db.query(models.Submission)\
+        .filter(models.Submission.user_id == current_user.id).count()
+        
+    user_stats = db.query(
+        models.User.id,
+        func.count(func.distinct(models.Submission.problem_id)).label('ac_count')
+    ).outerjoin(models.Submission, (models.Submission.user_id == models.User.id) & (models.Submission.status == "Accepted"))\
+     .group_by(models.User.id)\
+     .order_by(func.count(func.distinct(models.Submission.problem_id)).desc())\
+     .all()
+     
+    rank = 1
+    current_ac = -1
+    tied_offset = 0
+    for row in user_stats:
+        if current_ac == -1:
+            current_ac = row.ac_count
+        elif row.ac_count < current_ac:
+            current_ac = row.ac_count
+            rank += tied_offset + 1
+            tied_offset = 0
+        else:
+            tied_offset += 1
+            
+        if row.id == current_user.id:
+            break
+        
+        
+    return {
+        "solved_count": solved_count,
+        "submission_count": submission_count,
+        "rank": rank
+    }
+
+@router.get("/rankings")
+def read_users_rankings(
+    db: Session = Depends(deps.get_db),
+    skip: int = 0,
+    limit: int = 100
+) -> Any:
+    """取得排行榜"""
+    user_stats = db.query(
+        models.User.id,
+        models.User.username,
+        models.User.avatar_url,
+        func.count(func.distinct(models.Submission.problem_id)).label('ac_count')
+    ).outerjoin(models.Submission, (models.Submission.user_id == models.User.id) & (models.Submission.status == "Accepted"))\
+     .group_by(models.User.id)\
+     .order_by(func.count(func.distinct(models.Submission.problem_id)).desc())\
+     .offset(skip).limit(limit).all()
+     
+    return [
+        {
+            "id": str(row.id),
+            "username": row.username,
+            "avatar_url": row.avatar_url,
+            "solved_count": row.ac_count
+        } for row in user_stats
+    ]
 
 from fastapi import UploadFile, File
 import shutil
@@ -109,6 +210,12 @@ def update_user(
         raise HTTPException(
             status_code=403, 
             detail="權限不足，無法修改他人資料"
+        )
+        
+    if user_in.is_superuser is not None and not current_user.is_superuser:
+        raise HTTPException(
+            status_code=403,
+            detail="權限不足，無法修改管理員權限"
         )
     
     user = crud.user.update(db, db_obj=user, obj_in=user_in)

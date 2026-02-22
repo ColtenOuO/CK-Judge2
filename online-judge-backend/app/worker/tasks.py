@@ -150,6 +150,13 @@ def judge_submission(submission_id: str):
             memory_used=int(max_memory),
             details=results_detail
         )
+        
+        # Update problem statistics
+        problem.submission_count += 1
+        if final_status == "Accepted":
+            problem.accepted_count += 1
+        db.add(problem)
+        db.commit()
 
     except Exception as e:
         logger.error(f"Judge Error: {e}")

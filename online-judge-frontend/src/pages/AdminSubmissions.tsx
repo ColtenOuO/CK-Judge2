@@ -35,6 +35,7 @@ const AdminSubmissions: React.FC = () => {
 
     const queryParams = new URLSearchParams(location.search);
     const problemIdFilter = queryParams.get('problem_id');
+    const userIdFilter = queryParams.get('user_id');
 
     useEffect(() => {
         const fetchSubmissions = async () => {
@@ -42,6 +43,9 @@ const AdminSubmissions: React.FC = () => {
                 let url = '/submissions/?limit=500';
                 if (problemIdFilter) {
                     url += `&problem_id=${problemIdFilter}`;
+                }
+                if (userIdFilter) {
+                    url += `&user_id=${userIdFilter}`;
                 }
                 const res = await client.get(url);
                 setSubmissions(res.data);
@@ -140,16 +144,16 @@ const AdminSubmissions: React.FC = () => {
             <header className="bg-slate-900 border-b border-slate-800 sticky top-0 z-10 backdrop-blur-md bg-opacity-80">
                 <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
                     <button
-                        onClick={() => navigate(problemIdFilter ? `/problems/${problemIdFilter}` : '/dashboard')}
+                        onClick={() => navigate(problemIdFilter ? `/problems/${problemIdFilter}` : userIdFilter ? '/admin/users' : '/dashboard')}
                         className="flex items-center gap-2 p-2 hover:bg-slate-800 rounded-lg transition-colors text-slate-400 hover:text-white"
                     >
                         <ChevronLeft className="w-5 h-5" />
-                        {problemIdFilter ? 'Back to Problem' : 'Dashboard'}
+                        {problemIdFilter ? 'Back to Problem' : userIdFilter ? 'Back to Users' : 'Dashboard'}
                     </button>
                     <div className="flex items-center gap-4">
                         <h1 className="text-xl font-bold text-white flex items-center gap-2">
                             <Code className="w-5 h-5 text-cyan-400" />
-                            All Submissions {problemIdFilter ? '(Filtered)' : ''}
+                            All Submissions {(problemIdFilter || userIdFilter) ? '(Filtered)' : ''}
                         </h1>
                         {submissions.length > 0 && (
                             <button

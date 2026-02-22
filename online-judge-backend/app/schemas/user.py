@@ -29,6 +29,7 @@ class UserUpdate(UserBase):
 class UserOut(UserBase):
     id: UUID
     created_at: datetime
+    last_login_ip: Optional[str] = None
 
     class Config:
         from_attributes = True
