@@ -80,9 +80,30 @@ def judge_submission(submission_id: str):
         max_memory = 0
         results_detail = []
         final_status = "Accepted"
-
+        
         if not test_cases:
              final_status = "Skipped (No Test Cases)"
+
+        groups = {}
+        for tc in test_cases:
+            g = getattr(tc, 'group', 1)
+            if g is None:
+                g = 1
+            p = getattr(tc, 'points', 0)
+            if p is None:
+                p = 0
+            
+            if g not in groups:
+                groups[g] = {'test_cases': [], 'max_points': 0, 'all_passed': True}
+            groups[g]['test_cases'].append(tc)
+            groups[g]['max_points'] = max(groups[g]['max_points'], p)
+            
+
+        use_fallback_points = all(g_info['max_points'] <= 0 for g_info in groups.values()) and len(groups) > 0
+        if use_fallback_points:
+            fallback_score_per_group = 100 / len(groups)
+            for g_info in groups.values():
+                g_info['max_points'] = fallback_score_per_group
 
         for idx, tc in enumerate(test_cases):
             input_filename = f"{idx}.in"
@@ -109,7 +130,6 @@ def judge_submission(submission_id: str):
 
             if res["status"] == "Accepted":
                 actual_output = ""
-                # Read output generated inside the box
                 if os.path.exists(output_path):
                     with open(output_path, "r") as f:
                         actual_output = f.read().strip()
@@ -117,13 +137,17 @@ def judge_submission(submission_id: str):
                 expected_output = tc.output_data.strip()
                 if actual_output == expected_output:
                     res["status"] = "Accepted"
-                    score = 100 / len(test_cases)
-                    total_score += score
                 else:
                     res["status"] = "Wrong Answer"
                     final_status = "Wrong Answer"
             else:
                 final_status = res["status"]
+                
+            if res["status"] != "Accepted":
+                group_id = getattr(tc, 'group', 1)
+                if group_id is None:
+                    group_id = 1
+                groups[group_id]['all_passed'] = False
 
             max_time = max(max_time, res["time_used_ms"])
             max_memory = max(max_memory, res["memory_used_kb"])
@@ -136,10 +160,13 @@ def judge_submission(submission_id: str):
                 "return_code": res["return_code"]
             })
 
-            # Clean up test case files for the next loop (inside the box)
             for f in [input_path, output_path, os.path.join(box_path, err_filename)]:
                 if os.path.exists(f):
                     os.remove(f)
+
+        for g_id, g_info in groups.items():
+            if g_info['all_passed']:
+                total_score += g_info['max_points']
 
         crud.submission.update_result(
             db,
@@ -151,7 +178,6 @@ def judge_submission(submission_id: str):
             details=results_detail
         )
         
-        # Update problem statistics
         problem.submission_count += 1
         if final_status == "Accepted":
             problem.accepted_count += 1

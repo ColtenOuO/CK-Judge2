@@ -13,9 +13,36 @@ def read_problems(
     db: Session = Depends(deps.get_db),
     skip: int = 0,
     limit: int = 100,
+    current_user: Optional[models.User] = Depends(deps.get_current_user_optional),
 ) -> Any:
     """Retrieve problems."""
     problems = crud.problem.get_multi(db, skip=skip, limit=limit)
+    
+    # Check problem status for current user
+    if current_user:
+        user_subs = db.query(models.Submission).filter(
+            models.Submission.user_id == current_user.id
+        ).all()
+        
+        # Determine status per problem
+        status_map = {}
+        for sub in user_subs:
+            pid = sub.problem_id
+            if status_map.get(pid) == "Accepted":
+                continue
+            if sub.status == "Accepted":
+                status_map[pid] = "Accepted"
+            else:
+                status_map[pid] = "Attempted"
+                
+        # Attach user_status to response objects
+        result = []
+        for p in problems:
+            p_dict = schemas.ProblemOut.model_validate(p).model_dump()
+            p_dict['user_status'] = status_map.get(p.id)
+            result.append(p_dict)
+        return result
+        
     return problems
 
 @router.post("/", response_model=schemas.ProblemOut, status_code=status.HTTP_201_CREATED)
@@ -179,6 +206,8 @@ async def create_test_case(
     problem_id: UUID,
     input_file: UploadFile = File(...),
     output_file: UploadFile = File(...),
+    group: int = Form(1),
+    points: int = Form(0),
     is_sample: bool = Form(False),
     current_user: models.User = Depends(deps.get_current_active_superuser),
 ) -> Any:
@@ -197,6 +226,8 @@ async def create_test_case(
     test_case_in = schemas.TestCaseCreate(
         input_data=input_data,
         output_data=output_data,
+        group=group,
+        points=points,
         is_sample=is_sample
     )
     
@@ -216,11 +247,30 @@ def read_test_cases(
     if not problem:
         raise HTTPException(status_code=404, detail="Problem not found")
         
-    test_cases = crud.test_case.get_by_problem(db, problem_id=problem_id, skip=skip, limit=limit)
+    test_cases_all = crud.test_case.get_by_problem(db, problem_id=problem_id, skip=skip, limit=limit)
     if not current_user.is_superuser:
-        test_cases = [tc for tc in test_cases if tc.is_sample]
+        test_cases_all = [tc for tc in test_cases_all if tc.is_sample]
         
-    return test_cases
+    return test_cases_all
+
+@router.delete("/{problem_id}/test_cases/{test_case_id}", response_model=schemas.TestCaseOut)
+def delete_test_case(
+    *,
+    db: Session = Depends(deps.get_db),
+    problem_id: UUID,
+    test_case_id: UUID,
+    current_user: models.User = Depends(deps.get_current_active_superuser),
+) -> Any:
+    """Delete a test case (Admin only)."""
+    problem = crud.problem.get(db, id=problem_id)
+    if not problem:
+        raise HTTPException(status_code=404, detail="Problem not found")
+        
+    tc_obj = crud.test_case.get(db, id=test_case_id)
+    if not tc_obj or tc_obj.problem_id != problem_id:
+        raise HTTPException(status_code=404, detail="Test case not found")
+        
+    return crud.test_case.remove(db, id=test_case_id)
 
 @router.get("/{problem_id}/leaderboard")
 def read_problem_leaderboard(

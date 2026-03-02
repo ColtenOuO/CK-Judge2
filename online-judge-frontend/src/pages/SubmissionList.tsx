@@ -12,6 +12,7 @@ import {
 interface SubmissionSnippet {
     id: string;
     problem_id: string;
+    problem_title?: string;
     language: string;
     status: string;
     total_score: number;
@@ -24,12 +25,24 @@ const SubmissionList: React.FC = () => {
     const navigate = useNavigate();
     const [submissions, setSubmissions] = useState<SubmissionSnippet[]>([]);
     const [loading, setLoading] = useState(true);
+    const [page, setPage] = useState(1);
+    const [hasNextPage, setHasNextPage] = useState(false);
 
     useEffect(() => {
         const fetchSubmissions = async () => {
             try {
-                const res = await client.get('/submissions/');
-                setSubmissions(res.data);
+                setLoading(true);
+                const limit = 11;
+                const skip = (page - 1) * 10;
+                const res = await client.get(`/submissions/me?skip=${skip}&limit=${limit}`);
+
+                if (res.data.length > 10) {
+                    setSubmissions(res.data.slice(0, 10));
+                    setHasNextPage(true);
+                } else {
+                    setSubmissions(res.data);
+                    setHasNextPage(false);
+                }
                 setLoading(false);
             } catch (err) {
                 console.error("Failed to fetch submissions", err);
@@ -37,7 +50,7 @@ const SubmissionList: React.FC = () => {
             }
         };
         fetchSubmissions();
-    }, []);
+    }, [page]);
 
     const getStatusColor = (status: string) => {
         switch (status) {
@@ -117,7 +130,7 @@ const SubmissionList: React.FC = () => {
                                                 #{sub.id.slice(0, 8)}
                                             </td>
                                             <td className="p-4 text-sm font-bold text-white">
-                                                {sub.problem_id}
+                                                {sub.problem_title || sub.problem_id.substring(0, 8)}
                                             </td>
                                             <td className="p-4">
                                                 <div className={`inline-flex items-center gap-2 px-2.5 py-1 rounded text-xs font-bold ${getStatusColor(sub.status)}`}>
@@ -144,6 +157,25 @@ const SubmissionList: React.FC = () => {
                                 )}
                             </tbody>
                         </table>
+                    </div>
+
+                    {/* Pagination Controls */}
+                    <div className="p-4 border-t border-slate-800 flex items-center justify-between">
+                        <button
+                            disabled={page === 1}
+                            onClick={() => setPage(p => p - 1)}
+                            className="bg-slate-800/50 hover:bg-slate-700/50 disabled:opacity-50 text-slate-300 px-4 py-2 rounded-lg font-medium transition-colors"
+                        >
+                            Previous
+                        </button>
+                        <span className="text-slate-400 font-medium">Page {page}</span>
+                        <button
+                            disabled={!hasNextPage}
+                            onClick={() => setPage(p => p + 1)}
+                            className="bg-slate-800/50 hover:bg-slate-700/50 disabled:opacity-50 text-slate-300 px-4 py-2 rounded-lg font-medium transition-colors"
+                        >
+                            Next
+                        </button>
                     </div>
                 </div>
             </main>

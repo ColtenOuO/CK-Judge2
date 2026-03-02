@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import Column, String, Boolean, Text, ForeignKey
+from sqlalchemy import Column, String, Boolean, Text, ForeignKey, Integer
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from app.db.session import Base
@@ -22,6 +22,9 @@ class TestCase(Base):
     
     input_data = Column(Text, nullable=False)
     output_data = Column(Text, nullable=False)
+    
+    group = Column(Integer, default=1)
+    points = Column(Integer, default=0)
     
     is_sample = Column(Boolean, default=False)
     

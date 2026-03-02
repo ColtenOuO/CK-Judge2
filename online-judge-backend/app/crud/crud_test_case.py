@@ -18,6 +18,8 @@ class CRUDTestCase:
             problem_id=problem_id,
             input_data=obj_in.input_data,
             output_data=obj_in.output_data,
+            group=obj_in.group,
+            points=obj_in.points,
             is_sample=obj_in.is_sample
         )
         db.add(db_obj)

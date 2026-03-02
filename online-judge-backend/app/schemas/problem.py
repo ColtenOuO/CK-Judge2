@@ -48,4 +48,5 @@ class ProblemOut(ProblemInDBBase):
     tags: List["TagOut"] = []
     accepted_count: int = 0
     submission_count: int = 0
+    user_status: Optional[str] = None
 

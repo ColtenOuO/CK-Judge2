@@ -9,7 +9,9 @@ import {
     ArrowLeft,
     ChevronRight,
     Lock,
-    Unlock
+    Unlock,
+    CheckCircle,
+    Clock
 } from 'lucide-react';
 import client from '../api/client';
 
@@ -22,6 +24,7 @@ interface Problem {
     tags: { id: string; name: string; }[];
     accepted_count: number;
     submission_count: number;
+    user_status?: string;
 }
 
 interface UserProfile {
@@ -156,8 +159,17 @@ const ProblemList: React.FC = () => {
                                             )}
                                         </td>
                                         <td className="px-6 py-4">
-                                            <div className="font-bold text-lg text-slate-200 group-hover:text-cyan-400 transition-colors">
-                                                {problem.title}
+                                            <div className="flex items-center gap-3">
+                                                {problem.user_status === 'Accepted' ? (
+                                                    <div title="Solved"><CheckCircle className="w-5 h-5 text-emerald-500 flex-shrink-0" /></div>
+                                                ) : problem.user_status === 'Attempted' ? (
+                                                    <div title="Attempted"><Clock className="w-5 h-5 text-amber-500 flex-shrink-0" /></div>
+                                                ) : (
+                                                    <div className="w-5 h-5 flex-shrink-0"></div>
+                                                )}
+                                                <div className="font-bold text-lg text-slate-200 group-hover:text-cyan-400 transition-colors">
+                                                    {problem.title}
+                                                </div>
                                             </div>
                                         </td>
                                         <td className="px-6 py-4">

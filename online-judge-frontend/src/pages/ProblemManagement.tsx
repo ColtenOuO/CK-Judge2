@@ -34,6 +34,8 @@ const ProblemManagement: React.FC = () => {
     const [inputFile, setInputFile] = useState<File | null>(null);
     const [outputFile, setOutputFile] = useState<File | null>(null);
     const [isSample, setIsSample] = useState(false);
+    const [tcGroup, setTcGroup] = useState(1);
+    const [tcPoints, setTcPoints] = useState(0);
     const [mainFile, setMainFile] = useState<File | null>(null);
     const [headerFile, setHeaderFile] = useState<File | null>(null);
 
@@ -116,6 +118,8 @@ const ProblemManagement: React.FC = () => {
             const data = new FormData();
             data.append('input_file', inputFile);
             data.append('output_file', outputFile);
+            data.append('group', tcGroup.toString());
+            data.append('points', tcPoints.toString());
             data.append('is_sample', isSample.toString());
 
             await client.post(`/problems/${id}/test_cases`, data, {
@@ -127,6 +131,8 @@ const ProblemManagement: React.FC = () => {
             setInputFile(null);
             setOutputFile(null);
             setIsSample(false);
+            setTcGroup(1);
+            setTcPoints(0);
 
             // Clear file inputs
             const inputs = document.querySelectorAll('input[type="file"]');
@@ -137,6 +143,18 @@ const ProblemManagement: React.FC = () => {
         } catch (err: any) {
             console.error("Add test case error:", err);
             setError(err.response?.data?.detail || "Failed to add test case");
+        }
+    };
+
+    const handleDeleteTestCase = async (tcId: string) => {
+        if (!window.confirm("Are you sure you want to delete this test case?")) return;
+        try {
+            await client.delete(`/problems/${id}/test_cases/${tcId}`);
+            setSuccess("Test case deleted successfully");
+            fetchTestCases();
+        } catch (err: any) {
+            console.error("Delete test case error:", err);
+            setError(err.response?.data?.detail || "Failed to delete test case");
         }
     };
 
@@ -393,6 +411,26 @@ const ProblemManagement: React.FC = () => {
                                             className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-white focus:outline-none focus:border-cyan-500"
                                         />
                                     </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-400 mb-2">Group Number (Default: 1)</label>
+                                        <input
+                                            type="number"
+                                            value={tcGroup}
+                                            onChange={(e) => setTcGroup(parseInt(e.target.value))}
+                                            className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-white focus:outline-none focus:border-cyan-500"
+                                            min="1"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-400 mb-2">Points (Total value if group passes)</label>
+                                        <input
+                                            type="number"
+                                            value={tcPoints}
+                                            onChange={(e) => setTcPoints(parseInt(e.target.value))}
+                                            className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-white focus:outline-none focus:border-cyan-500"
+                                            min="0"
+                                        />
+                                    </div>
                                 </div>
                                 <div className="flex items-center justify-between">
                                     <label className="flex items-center gap-2 cursor-pointer">
@@ -440,6 +478,20 @@ const ProblemManagement: React.FC = () => {
                                                     SAMPLE
                                                 </span>
                                             )}
+                                            <span className="bg-slate-800 text-slate-300 text-xs font-bold px-2 py-1 rounded border border-slate-700">
+                                                GROUP {tc.group || 1}
+                                            </span>
+                                            {(tc.points > 0) && (
+                                                <span className="bg-emerald-500/10 text-emerald-400 text-xs font-bold px-2 py-1 rounded border border-emerald-500/20">
+                                                    {tc.points} PTS
+                                                </span>
+                                            )}
+                                            <button
+                                                onClick={() => handleDeleteTestCase(tc.id)}
+                                                className="mt-auto px-3 py-1 bg-red-500/10 hover:bg-red-500/20 text-red-500 text-xs font-bold rounded border border-red-500/20 transition-colors"
+                                            >
+                                                Delete
+                                            </button>
                                         </div>
                                     </div>
                                 ))}
